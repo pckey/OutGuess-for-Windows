@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if ((fin = fopen_utf8(argv[0], "r")) == NULL)
+	if ((fin = fopen_utf8(argv[0], "rb")) == NULL)
 		err(1, "fopen");
 
 	if ((res = fread(&bits, sizeof(int), 1, fin)) != 1)
