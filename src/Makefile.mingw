@@ -26,8 +26,8 @@ $(JPEGDIR)/libjpeg.a: $(JPEGDIR)/jconfig.h
 		CC="$(CC)" AR="$(AR) rc" AR2="$(RANLIB)" \
 		CFLAGS="$(CFLAGS) -DHAVE_STDC_HEADERS" libjpeg.a
 
-OUTGUESS_SRCS := outguess.c golay.c arc.c pnm.c jpg.c iterator.c md5.c err.c win32/getopt.c
-HISTOGRAM_SRCS := histogram.c err.c win32/getopt.c
+OUTGUESS_SRCS := outguess.c golay.c arc.c pnm.c jpg.c iterator.c md5.c err.c win32/getopt.c i18n.c
+HISTOGRAM_SRCS := histogram.c err.c win32/getopt.c i18n.c
 
 outguess.exe: $(JPEGDIR)/libjpeg.a $(OUTGUESS_SRCS)
 	$(CC) $(CFLAGS) -static -I. -I$(JPEGDIR) $(OUTGUESS_SRCS) \
@@ -54,14 +54,14 @@ outguess-gui-en.exe: ../bin-win64/outguess-gui-en.c ../bin-win64/outguess-gui.re
 
 capacity.exe: tools/capacity.c $(OUTGUESS_SRCS)
 	$(CC) $(CFLAGS) -static -I. -I$(JPEGDIR) tools/capacity.c \
-		arc.c pnm.c jpg.c md5.c err.c win32/getopt.c $(JPEGDIR)/libjpeg.a \
+		arc.c pnm.c jpg.c md5.c err.c win32/getopt.c i18n.c $(JPEGDIR)/libjpeg.a \
 		-o capacity.exe -lm
 
-metadata.exe: tools/metadata.c
-	$(CC) $(CFLAGS) -static tools/metadata.c -o metadata.exe
+metadata.exe: tools/metadata.c i18n.c
+	$(CC) $(CFLAGS) -static tools/metadata.c i18n.c -o metadata.exe
 
-batch.exe: tools/batch.c
-	$(CC) $(CFLAGS) -static tools/batch.c -o batch.exe
+batch.exe: tools/batch.c i18n.c
+	$(CC) $(CFLAGS) -static tools/batch.c i18n.c -o batch.exe
 
 clean:
 	rm -f *.o win32/*.o tools/*.o $(JPEGDIR)/*.o $(JPEGDIR)/libjpeg.a $(JPEGDIR)/jconfig.h outguess.exe histogram.exe outguess-gui.exe outguess-gui-en.exe capacity.exe metadata.exe batch.exe ../bin-win64/outguess-gui.res

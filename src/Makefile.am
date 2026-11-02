@@ -19,7 +19,8 @@ outguess_SOURCES = outguess.c \
                    arc.c arc.h \
                    pnm.c pnm.h \
                    jpg.c jpg.h \
-                   iterator.c iterator.h
+                   iterator.c iterator.h \
+                   i18n.c i18n.h
 
 if MD5MISS
 outguess_SOURCES += md5.c md5.h
@@ -31,7 +32,7 @@ endif
 
 outguess_LDADD = jpeg-6b-steg/libjpeg.a -lm
 
-histogram_SOURCES = histogram.c
+histogram_SOURCES = histogram.c i18n.c i18n.h
 
 # Install seek_script
 dist_bin_SCRIPTS = seek_script

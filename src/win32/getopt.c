@@ -8,6 +8,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include "../i18n.h"
 
 char *optarg = NULL;
 int   optind = 1;
@@ -43,8 +44,10 @@ outguess_getopt(int argc, char * const argv[], const char *optstring)
 
 		if (p == NULL || optopt == ':') {
 			if (opterr)
-				fprintf(stderr, "%s: opcao invalida -- '%c'\n",
-					argv[0], optopt);
+				fprintf(stderr, og_L(
+				    "%s: invalid option -- '%c'\n",
+				    "%s: 无效选项 -- '%c'\n"),
+				    argv[0], optopt);
 			return '?';
 		}
 
@@ -57,8 +60,9 @@ outguess_getopt(int argc, char * const argv[], const char *optstring)
 				optind++;
 			} else {
 				if (opterr)
-					fprintf(stderr,
-					    "%s: a opcao -- '%c' requer um argumento\n",
+					fprintf(stderr, og_L(
+					    "%s: option requires an argument -- '%c'\n",
+					    "%s: 选项需要一个参数 -- '%c'\n"),
 					    argv[0], optopt);
 				return '?';
 			}

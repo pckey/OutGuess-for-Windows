@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../win32/winutf8.h"
+#include "../i18n.h"
 
 static unsigned short read16(FILE *file)
 {
@@ -29,7 +30,7 @@ static int contains_iptc(const unsigned char *data, size_t length)
 
 static void usage(const char *program)
 {
-	fprintf(stderr, "Uso: %s imagem.jpg\n", program);
+	fprintf(stderr, og_L("Usage: %s image.jpg\n", "用法: %s image.jpg\n"), program);
 }
 
 int main(int argc, char **argv)
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
 	/* 让命令行参数（如中文图片路径）按 UTF-8 解析，而非系统 ANSI 代码页 */
 	win32_to_utf8_args(&argc, &argv);
 #endif
+	og_i18n_init(&argc, &argv);
 
 	if (argc != 2) {
 		usage(argv[0]);
@@ -55,7 +57,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	if (fgetc(file) != 0xff || fgetc(file) != 0xd8) {
-		fprintf(stderr, "Arquivo invalido: assinatura JPEG ausente.\n");
+		fprintf(stderr, og_L("Invalid file: missing JPEG signature.\n", "无效文件：缺少 JPEG 签名。\n"));
 		fclose(file);
 		return 1;
 	}
@@ -117,17 +119,24 @@ int main(int argc, char **argv)
 	}
 	fclose(file);
 	if (!width || !height) {
-		fprintf(stderr, "Nao foi encontrado um marcador SOF JPEG.\n");
+		fprintf(stderr, og_L("No JPEG SOF marker found.\n", "未找到 JPEG SOF 标记。\n"));
 		return 1;
 	}
 	theoreticalBits = (unsigned long long)width * height * (components ? components : 1);
-	printf("Arquivo: %s\nDimensoes: %dx%d\nPrecisao: %d bits\nComponentes: %d\n",
+	printf(og_L(
+		"File: %s\nDimensions: %dx%d\nPrecision: %d bits\nComponents: %d\n",
+		"文件: %s\n尺寸: %dx%d\n精度: %d bits\n分量: %d\n"),
 		argv[1], width, height, precision, components);
-	printf("Espaco de cor: %s\n", components == 1 ? "tons de cinza" :
-		components == 3 ? "YCbCr/RGB" : components == 4 ? "CMYK/YCCK" : "desconhecido");
-	printf("JFIF: %s\nEXIF: %s\nIPTC: %s\nXMP: %s\n",
-		jfif ? "sim" : "nao", exif ? "sim" : "nao", iptc ? "sim" : "nao", xmp ? "sim" : "nao");
-	printf("Capacidade teorica: %llu bits (%llu bytes)\n", theoreticalBits, theoreticalBits / 8);
-	printf("Nota: a capacidade real depende dos coeficientes DCT e pode ser menor.\n");
+	printf(og_L("Color space: %s\n", "色彩空间: %s\n"),
+		components == 1 ? og_L("grayscale", "灰度") :
+		components == 3 ? "YCbCr/RGB" : components == 4 ? "CMYK/YCCK" : og_L("unknown", "未知"));
+	printf(og_L("JFIF: %s\nEXIF: %s\nIPTC: %s\nXMP: %s\n",
+		"JFIF: %s\nEXIF: %s\nIPTC: %s\nXMP: %s\n"),
+		jfif ? og_L("yes", "是") : og_L("no", "否"),
+		exif ? og_L("yes", "是") : og_L("no", "否"),
+		iptc ? og_L("yes", "是") : og_L("no", "否"),
+		xmp ? og_L("yes", "是") : og_L("no", "否"));
+	printf(og_L("Theoretical capacity: %llu bits (%llu bytes)\n", "理论容量: %llu bits (%llu bytes)\n"), theoreticalBits, theoreticalBits / 8);
+	printf(og_L("Note: actual capacity depends on DCT coefficients and may be lower.\n", "注意：实际容量取决于 DCT 系数，可能更低。\n"));
 	return 0;
 }

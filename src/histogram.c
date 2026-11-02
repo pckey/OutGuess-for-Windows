@@ -10,6 +10,7 @@
 #include "err.h"
 #include "outguess.h"
 #include "win32/winutf8.h"
+#include "i18n.h"
 
 char *progname;
 
@@ -17,7 +18,7 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "%s: <file>\n", progname);
+	fprintf(stderr, og_L("%s: <file>\n", "%s: <文件>\n"), progname);
 }
 
 void
@@ -32,9 +33,9 @@ histogram_simple(u_char *data, int bits)
 		else
 			zero++;
 
-	fprintf(stdout, "Bits: %6d\n", bits);
-	fprintf(stdout, "One:  %6d, %f\n", one, (float)one/bits);
-	fprintf(stdout, "Zero: %6d, %f\n", zero, (float)zero/bits);
+	fprintf(stdout, og_L("Bits: %6d\n", "比特: %6d\n"), bits);
+	fprintf(stdout, og_L("One:  %6d, %f\n", "置1:  %6d, %f\n"), one, (float)one/bits);
+	fprintf(stdout, og_L("Zero: %6d, %f\n", "置0: %6d, %f\n"), zero, (float)zero/bits);
 }
 
 #define MAXRUNLEN	25
@@ -82,6 +83,7 @@ main(int argc, char *argv[])
 	/* 让命令行参数（如中文数据文件路径）按 UTF-8 解析，而非系统 ANSI 代码页 */
 	win32_to_utf8_args(&argc, &argv);
 #endif
+	og_i18n_init(&argc, &argv);
 
 	argv++;
 	argc--;

@@ -79,6 +79,7 @@
 #endif
 
 #include "win32/winutf8.h"
+#include "i18n.h"
 
 #ifndef MAP_FAILED
 /* Some Linux systems are missing this */
@@ -136,7 +137,7 @@ checkedmalloc(size_t n)
 	void *p;
 
 	if (!(p = malloc(n))) {
-		fprintf(stderr, "checkedmalloc: not enough memory\n");
+		fprintf(stderr, og_L("checkedmalloc: not enough memory\n", "checkedmalloc: 内存不足\n"));
 		exit(1);
 	}
 
@@ -271,14 +272,18 @@ steg_embed(bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 	memset(&result, 0, sizeof(result));
 
 	if (bitmap->bits / (datalen * 8) < 2) {
-		fprintf(stderr, "steg_embed: not enough bits in bitmap "
+		fprintf(stderr, og_L(
+			"steg_embed: not enough bits in bitmap "
 			"for embedding: %d > %d/2\n",
+			"steg_embed: 位图中可用比特不足，"
+			"无法嵌入：%d > %d/2\n"),
 			datalen * 8, bitmap->bits);
 		exit (1);
 	}
 
 	if (embed & STEG_EMBED)
-		fprintf(stderr, "Embedding data: %d in %d\n",
+		fprintf(stderr, og_L("Embedding data: %d in %d\n",
+			"正在嵌入数据：%d / %d 比特\n"),
 			datalen * 8, bitmap->bits);
 
 	/* Clear error counter */
@@ -333,9 +338,13 @@ steg_embed(bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 	  steg_adjust_errors(bitmap, embed);
 
 	if (embed & STEG_EMBED) {
-		fprintf(stderr, "Bits embedded: %d, "
+		fprintf(stderr, og_L(
+			"Bits embedded: %d, "
 			"changed: %d(%2.1f%%)[%2.1f%%], "
 			"bias: %d, tot: %d, skip: %d\n",
+			"已嵌入比特：%d，"
+			"已改：%d(%2.1f%%)[%2.1f%%]，"
+			"偏移：%d，总计：%d，跳过：%d\n"),
 			steg_count, steg_mis,
 			(float) 100 * steg_mis/steg_count,
 			(float) 100 * steg_mis/steg_data, /* normalized */
@@ -389,7 +398,7 @@ steg_retrieve(int *len, bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 	buf = decode_data (tmpbuf, &datalen, as, flags);
 
 	if (datalen != 4) {
-		fprintf (stderr, "Steg retrieve: wrong data len: %d\n",
+		fprintf (stderr, og_L("Steg retrieve: wrong data len: %d\n", "Steg 还原：数据长度错误：%d\n"),
 			 datalen);
 		exit (1);
 	}
@@ -401,10 +410,10 @@ steg_retrieve(int *len, bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 
 	free (buf);
 
-	fprintf(stderr, "Steg retrieve: seed: %d, len: %d\n", seed, datalen);
+	fprintf(stderr, og_L("Steg retrieve: seed: %d, len: %d\n", "Steg 还原：种子：%d，长度：%d\n"), seed, datalen);
 
 	if (datalen > bitmap->bytes) {
-		fprintf(stderr, "Extracted datalen is too long: %d > %d\n",
+		fprintf(stderr, og_L("Extracted datalen is too long: %d > %d\n", "提取的数据长度过长：%d > %d\n"),
 			datalen, bitmap->bytes);
 		exit(1);
 	}
@@ -449,7 +458,7 @@ steg_find(bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 			memset(chstats, 0, size * sizeof(u_int16_t));
 		}
 
-		fprintf(stderr, "Finding best embedding...\n");
+		fprintf(stderr, og_L("Finding best embedding...\n", "正在寻找最佳嵌入方案...\n"));
 		int changed = -1, chmin = -1, chmax = -1; j = -STEG_ERR_HEADER;
 
 		for (i = siterstart; i < siter; i++) {
@@ -480,7 +489,7 @@ steg_find(bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 			if (changed == -1 || tch < changed) {
 				changed = tch;
 				j = i;
-				fprintf(stderr, "%5d: %5d(%3.1f%%)[%3.1f%%], bias %5d(%1.2f), saved: % 5d, total: %5.2f%%\n",
+				fprintf(stderr, og_L("%5d: %5d(%3.1f%%)[%3.1f%%], bias %5d(%1.2f), saved: % 5d, total: %5.2f%%\n", "%5d: %5d(%3.1f%%)[%3.1f%%]，偏移 %5d(%1.2f)，已保存：% 5d，总计：%5.2f%%\n"),
 					j, result.changed,
 					(float) 100 * steg_mis / steg_count,
 					(float) 100 * steg_mis / steg_data,
@@ -516,7 +525,7 @@ steg_find(bitmap *bitmap, iterator *iter, struct arc4_stream *as,
 					dev += sq * sq;
 				}
 
-			fprintf(stderr, "Changed bits. Min: %d, Mean: %f, +- %f, Max: %d\n",
+			fprintf(stderr, og_L("Changed bits. Min: %d, Mean: %f, +- %f, Max: %d\n", "已修改比特。最小：%d，均值：%f，±%f，最大：%d\n"),
 				chmin,
 				mean, sqrt(dev / (cnt - 1)),
 				chmax);
@@ -661,7 +670,7 @@ decode_data(u_char *encdata, int *len, struct arc4_stream *as, int flags)
 
 		i = data[declen -1];
 		if (i > 2) {
-			fprintf (stderr, "decode_data: padding is incorrect: %d\n",
+			fprintf (stderr, og_L("decode_data: padding is incorrect: %d\n", "decode_data：填充不正确：%d\n"),
 				 i);
 			*len = 0;
 			return data;
@@ -670,14 +679,14 @@ decode_data(u_char *encdata, int *len, struct arc4_stream *as, int flags)
 			if (data[declen - 1 - i + j] != j)
 				break;
 		if (j >= 0) {
-			fprintf (stderr, "decode_data: padding is incorrect: %d\n",
+			fprintf (stderr, og_L("decode_data: padding is incorrect: %d\n", "decode_data：填充不正确：%d\n"),
 				 i);
 			*len = 0;
 			return data;
 		}
 
 		declen -= i + 1;
-		fprintf (stderr, "Decode: %d data after ECC: %d\n",
+		fprintf (stderr, og_L("Decode: %d data after ECC: %d\n", "解码：纠错后数据 %d，%d\n"),
 			 *len, declen);
 
 	} else {
@@ -713,17 +722,20 @@ do_embed(bitmap *bitmap, u_char *filename, u_char *key, u_int klen,
 	enclen = datalen;
 	encdata = encode_data(data, &enclen, &tas, cfg->flags);
 	if (cfg->flags & STEG_ERROR) {
-		fprintf(stderr, "Encoded '%s' with ECC: %d bits, %d bytes\n",
+		fprintf(stderr, og_L("Encoded '%s' with ECC: %d bits, %d bytes\n", "已编码 '%s'（含 ECC）：%d 比特，%d 字节\n"),
 			filename, enclen * 8, enclen);
 		correctlen = enclen / 2 * 8;
 	} else {
-		fprintf(stderr, "Encoded '%s': %d bits, %d bytes\n",
+		fprintf(stderr, og_L("Encoded '%s': %d bits, %d bytes\n", "已编码 '%s'：%d 比特，%d 字节\n"),
 			filename, enclen * 8, enclen);
 		correctlen = enclen * 8;
 	}
 	if (bitmap->maxcorrect && correctlen > bitmap->maxcorrect) {
-		fprintf(stderr, "steg_embed: "
+		fprintf(stderr, og_L(
+			"steg_embed: "
 			"message larger than correctable size %zu > %zu\n",
+			"steg_embed: "
+			"消息超过可纠错大小 %zu > %zu\n"),
 			correctlen, bitmap->maxcorrect);
 		exit(1);
 	}
@@ -733,7 +745,7 @@ do_embed(bitmap *bitmap, u_char *filename, u_char *key, u_int klen,
 	j = steg_find(bitmap, &iter, &as, cfg->siter, cfg->siterstart,
 		      encdata, enclen, cfg->flags);
 	if (j < 0) {
-		fprintf(stderr, "Failed to find embedding.\n");
+		fprintf(stderr, og_L("Failed to find embedding.\n", "未找到可用嵌入位置。\n"));
 		goto out;
 	}
 
@@ -758,7 +770,7 @@ mmap_file(char *name, u_char **data, int *size)
 #else
 	if ((fd = open_utf8(name, O_RDONLY, 0)) == -1) {
 #endif
-		fprintf(stderr, "Can not open %s\n", name);
+		fprintf(stderr, og_L("Can not open %s\n", "无法打开 %s\n"), name);
 		exit(1);
 	}
 
@@ -798,29 +810,51 @@ munmap_file(u_char *data, int len)
 #endif /* HAVE_MMAP */
 }
 
+static const char *usage_en =
+	"%s\n\n%s [options] [<input file> [<output file>]]\n"
+	"\t-h           print this usage help text and exit\n"
+	"\t-[sS] <n>    iteration start, capital letter for 2nd dataset\n"
+	"\t-[iI] <n>    iteration limit\n"
+	"\t-[kK] <key>  key\n"
+	"\t-[dD] <name> filename of dataset\n"
+	"\t-[eE]        use error correcting encoding\n"
+	"\t-p <param>   parameter passed to destination data handler\n"
+	"\t-r           retrieve message from data\n"
+	"\t-x <n>       number of key derivations to be tried\n"
+	"\t-m           mark pixels that have been modified\n"
+	"\t-t           collect statistic information\n"
+	"\t-F[+-]       turns statistical steganalysis foiling on/off.\n"
+	"\t             The default is on.\n"
+#ifdef FOURIER
+	"\t-f           fourier transform modified image\n"
+#endif /* FOURIER */
+	;
+
+static const char *usage_zh =
+	"%s\n\n%s [选项] [<输入文件> [<输出文件>]]\n"
+	"\t-h           显示本帮助并退出\n"
+	"\t-[sS] <n>    迭代起始值，大写字母用于第二组数据\n"
+	"\t-[iI] <n>    迭代上限\n"
+	"\t-[kK] <密钥> 密钥\n"
+	"\t-[dD] <名称> 数据文件名\n"
+	"\t-[eE]        使用纠错编码\n"
+	"\t-p <参数>    传给目标数据处理器的参数\n"
+	"\t-r           从数据中还原消息\n"
+	"\t-x <n>       尝试的密钥派生次数\n"
+	"\t-m           标记被修改的像素\n"
+	"\t-t           收集统计信息\n"
+	"\t-F[+-]       开启/关闭统计隐写分析防范（默认开启）\n"
+	"\t             默认开启。\n"
+#ifdef FOURIER
+	"\t-f           傅里叶变换修改后的图像\n"
+#endif /* FOURIER */
+	;
 
 int
 main(int argc, char **argv)
 {
 	char version[] = "OutGuess 0.4 Universal Stego 1999-2021 Niels Provos and others";
-	char usage[] = "%s\n\n%s [options] [<input file> [<output file>]]\n"
-		"\t-h           print this usage help text and exit\n"
-		"\t-[sS] <n>    iteration start, capital letter for 2nd dataset\n"
-		"\t-[iI] <n>    iteration limit\n"
-		"\t-[kK] <key>  key\n"
-		"\t-[dD] <name> filename of dataset\n"
-		"\t-[eE]        use error correcting encoding\n"
-		"\t-p <param>   parameter passed to destination data handler\n"
-		"\t-r           retrieve message from data\n"
-		"\t-x <n>       number of key derivations to be tried\n"
-		"\t-m           mark pixels that have been modified\n"
-		"\t-t           collect statistic information\n"
-		"\t-F[+-]       turns statistical steganalysis foiling on/off.\n"
-		"\t             The default is on.\n"
-#ifdef FOURIER
-		"\t-f           fourier transform modified image\n"
-#endif /* FOURIER */
-		;
+	const char *usage;
 
 	char *progname;
 	FILE *fin = stdin, *fout = stdout;
@@ -850,6 +884,8 @@ main(int argc, char **argv)
 	 * 使非 ASCII 的 -k 密钥与中文路径跨代码页一致（见 src/win32/winutf8.h）。 */
 	win32_to_utf8_args(&argc, &argv);
 #endif
+	og_i18n_init(&argc, &argv);
+	usage = og_L(usage_en, usage_zh);
 
 	progname = argv[0];
 	steg_stat = 0;
@@ -948,27 +984,30 @@ main(int argc, char **argv)
 	if (argc == 2) {
 		srch = get_handler(argv[0]);
 		if (srch == NULL) {
-			fprintf(stderr, "Unknown data type of %s\n", argv[0]);
+			fprintf(stderr, og_L("Unknown data type of %s\n", "未知数据类型：%s\n"), argv[0]);
 			exit (1);
 		}
 		if (!doretrieve) {
 			dsth = get_handler(argv[1]);
 			if (dsth == NULL) {
-				fprintf(stderr, "Unknown data type of %s\n",
+				fprintf(stderr, og_L("Unknown data type of %s\n",
+					"未知数据类型：%s\n"),
 					argv[1]);
 				exit (1);
 			}
 		}
 		fin = fopen_utf8(argv[0], "rb");
 		if (fin == NULL) {
-			fprintf(stderr, "Can't open input file '%s': ",
+			fprintf(stderr, og_L("Can't open input file '%s': ",
+				"无法打开输入文件 '%s': "),
 				argv[0]);
 			perror("fopen");
 			exit(1);
 		}
 		fout = fopen_utf8(argv[1], "wb");
 		if (fout == NULL) {
-			fprintf(stderr, "Can't open output file '%s': ",
+			fprintf(stderr, og_L("Can't open output file '%s': ",
+				"无法打开输出文件 '%s': "),
 				argv[1]);
 			perror("fopen");
 			exit(1);
@@ -982,11 +1021,12 @@ main(int argc, char **argv)
 
 	/* Initialize Golay-Tables for 12->23 bit error correction */
 	if (doerror || doerror2) {
-		fprintf(stderr, "Initialize encoding/decoding tables\n");
+		fprintf(stderr, og_L("Initialize encoding/decoding tables\n",
+			"初始化编码/解码表\n"));
 		init_golay();
 	}
 
-	fprintf(stderr, "Reading %s....\n", argv[0]);
+	fprintf(stderr, og_L("Reading %s....\n", "正在读取 %s....\n"), argv[0]);
 	image = srch->read(fin);
 
 	if (extractonly) {
@@ -994,7 +1034,7 @@ main(int argc, char **argv)
 		/* Wen extracting get the bitmap from the source handler */
 		srch->get_bitmap(&bitmap, image, STEG_RETRIEVE);
 
-		fprintf(stderr, "Writing %d bits\n", bitmap.bits);
+		fprintf(stderr, og_L("Writing %d bits\n", "正在写入 %d 位\n"), bitmap.bits);
 		bits = htonl(bitmap.bits);
 		fwrite(&bits, 1, sizeof(int), fout);
 		fwrite(bitmap.bitmap, bitmap.bytes, sizeof(char), fout);
@@ -1008,7 +1048,8 @@ main(int argc, char **argv)
 		/* When embedding the destination format determines the bits */
 		dsth->get_bitmap(&bitmap, image, 0);
 	}
-	fprintf(stderr, "Extracting usable bits:   %d bits\n", bitmap.bits);
+	fprintf(stderr, og_L("Extracting usable bits:   %d bits\n",
+		"提取可用比特：   %d 位\n"), bitmap.bits);
 
 	if (doerror)
 		cfg1.flags |= STEG_ERROR;
@@ -1020,7 +1061,8 @@ main(int argc, char **argv)
 			dsth->preserve(&bitmap, -1);
 			if (bitmap.maxcorrect)
 				fprintf(stderr,
-					"Correctable message size: %zu bits, %0.2f%%\n",
+					og_L("Correctable message size: %zu bits, %0.2f%%\n",
+						"可纠错消息大小：%zu 位，%0.2f%%\n"),
 					bitmap.maxcorrect,
 					(float)100*bitmap.maxcorrect/bitmap.bits);
 		}
@@ -1053,7 +1095,7 @@ main(int argc, char **argv)
 			}
 
 			if (j < 0) {
-				fprintf(stderr, "Failed to find embedding.\n");
+				fprintf(stderr, og_L("Failed to find embedding.\n", "未找到可用嵌入位置。\n"));
 				exit (1);
 			}
 
@@ -1111,17 +1153,21 @@ main(int argc, char **argv)
 				dev += steg_offset[i] * sq;
 			}
 
-			fprintf(stderr, "Foiling statistics: "
+			fprintf(stderr, og_L("Foiling statistics: "
 				"corrections: %d, failed: %d, "
 				"offset: %f +- %f\n",
+				"反制统计：修正 %d 次，失败 %d 次，"
+				"偏移 %f +- %f\n"),
 				steg_foil, steg_foilfail,
 				mean, sqrt(dev / (count - 1)));
 		}
 
-		fprintf(stderr, "Total bits changed: %d (change %d + bias %d)\n",
+		fprintf(stderr, og_L("Total bits changed: %d (change %d + bias %d)\n",
+			"总计改变比特：%d（变更 %d + 偏置 %d）\n"),
 			cumres.changed + cumres.bias,
 			cumres.changed, cumres.bias);
-		fprintf(stderr, "Storing bitmap into data...\n");
+		fprintf(stderr, og_L("Storing bitmap into data...\n",
+			"正在将位图存入数据...\n"));
 		dsth->put_bitmap (image, &bitmap, cfg1.flags);
 
 #ifdef FOURIER
@@ -1130,7 +1176,7 @@ main(int argc, char **argv)
 				  image->img);
 #endif /* FOURIER */
 
-		fprintf(stderr, "Writing %s....\n", argv[1]);
+		fprintf(stderr, og_L("Writing %s....\n", "正在写入 %s....\n"), argv[1]);
 		dsth->write(fout, image);
 	} else {
 		/* Initialize random data stream */
