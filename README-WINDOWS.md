@@ -171,6 +171,22 @@ The basic flow remains compatible with the traditional OutGuess syntax.
 .\outguess.exe -h
 ```
 
+### Language
+
+The command-line tools print their messages in Simplified Chinese by default.
+Add `-L en` (or `--lang en` / `--lang=en`) to switch the whole session to
+English:
+
+```powershell
+.\outguess.exe -L en -h
+.\capacity.exe --lang=en -e -p 85 .\image.jpg
+```
+
+The environment variables `OUTGUESS_LANG`, `LC_ALL` and `LANG` are also
+honored (a value containing `en` selects English, `zh`/`CN` selects Chinese);
+the command-line option takes precedence. The GUI executables keep their own
+fixed interface language and are unaffected.
+
 For the complete option reference, see
 [`man/outguess.txt`](man/outguess.txt).
 

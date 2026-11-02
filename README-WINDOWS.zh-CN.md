@@ -151,6 +151,17 @@ GUI 提供以下功能：
 .\outguess.exe -h
 ```
 
+### 语言
+
+命令行工具默认以简体中文输出信息。加 `-L en`（或 `--lang en` / `--lang=en`）可切换为英文：
+
+```powershell
+.\outguess.exe -L en -h
+.\capacity.exe --lang=en -e -p 85 .\image.jpg
+```
+
+环境变量 `OUTGUESS_LANG`、`LC_ALL`、`LANG` 同样生效（取值含 `en` 选英文，`zh`/`CN` 选中文），且命令行选项的优先级高于环境变量。两个 GUI 程序界面语言固定，不受此选项影响。
+
 完整选项参考请见 [`man/outguess.txt`](man/outguess.txt)。
 
 ## 交叉编译

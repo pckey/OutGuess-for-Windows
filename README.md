@@ -63,6 +63,30 @@ key of the original OutGuess is used.
 .\outguess.exe -h
 ```
 
+## Command-line language
+
+All command-line tools (`outguess`, `histogram`, `capacity`, `metadata`,
+`batch`) print their messages in **Simplified Chinese by default**. To run a
+whole session in English, pass `-L en` (or `--lang en` / `--lang=en`):
+
+```powershell
+.\outguess.exe -L en -k "my-key" -d ".\message.txt" ".\image.jpg" ".\output.jpg"
+.\capacity.exe --lang=en -e -p 85 .\image.jpg
+```
+
+The language can also be set through the environment, without changing the
+command line:
+
+```powershell
+$env:OUTGUESS_LANG = "en"   # Windows PowerShell
+# or LC_ALL / LANG with a value containing en (English) or zh / CN (Chinese)
+```
+
+Precedence: the `-L` / `--lang` command-line option overrides the
+`OUTGUESS_LANG`, `LC_ALL` and `LANG` environment variables. The GUI
+executables have their own fixed interface language (`outguess-gui.exe` is
+Chinese, `outguess-gui-en.exe` is English) and are not affected by this option.
+
 ## Graphical interface
 
 The build produces **two** GUI executables that share identical logic; only the

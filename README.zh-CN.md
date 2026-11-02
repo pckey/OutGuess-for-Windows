@@ -55,6 +55,24 @@ cd "C:\path\OutGuess-for-Windows\bin-win64"
 .\outguess.exe -h
 ```
 
+## 命令行语言
+
+所有命令行工具（`outguess`、`histogram`、`capacity`、`metadata`、`batch`）默认以**简体中文**输出信息。如需切换为英文，可加 `-L en`（或 `--lang en` / `--lang=en`）：
+
+```powershell
+.\outguess.exe -L en -k "my-key" -d ".\message.txt" ".\image.jpg" ".\output.jpg"
+.\capacity.exe --lang=en -e -p 85 .\image.jpg
+```
+
+也可以通过环境变量设置，无需改动命令行：
+
+```powershell
+$env:OUTGUESS_LANG = "en"   # Windows PowerShell
+# 或 LC_ALL / LANG 取含 en（英文）/ zh（CN，中文）的值
+```
+
+优先级：`-L` / `--lang` 命令行选项优先于 `OUTGUESS_LANG`、`LC_ALL`、`LANG` 环境变量。两个 GUI 程序（`outguess-gui.exe` 为中文、`outguess-gui-en.exe` 为英文）界面语言固定，不受此选项影响。
+
 ## 图形界面
 
 构建会产出**两个**逻辑完全相同、仅界面语言不同的 GUI 程序：
