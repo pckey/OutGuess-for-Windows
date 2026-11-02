@@ -1,11 +1,17 @@
 /*
- * outguess-gui.c - OutGuess µÄÔ­Éú Win32 Í¼ĞÎ½çÃæ¡£
+ * outguess-gui.c - OutGuess çš„åŸç”Ÿ Win32 å›¾å½¢ç•Œé¢ã€‚
  *
- * ²»ÖØĞÂÊµÏÖÈÎºÎÒşĞ´Âß¼­£º½ö×é×°ÃüÁîĞĞ²¢µ÷ÓÃ outguess.exe
- * £¨ĞëÓë±¾³ÌĞòÎ»ÓÚÍ¬Ò»Ä¿Â¼£©£¬²¶»ñÆäÊä³ö²¢ÏÔÊ¾ÔÚ½çÃæÈÕÖ¾ÖĞ¡£
+ * ä¸é‡æ–°å®ç°ä»»ä½•éšå†™é€»è¾‘ï¼šä»…ç»„è£…å‘½ä»¤è¡Œå¹¶è°ƒç”¨ outguess.exe
+ * ï¼ˆé¡»ä¸æœ¬ç¨‹åºä½äºåŒä¸€ç›®å½•ï¼‰ï¼Œæ•è·å…¶è¾“å‡ºå¹¶æ˜¾ç¤ºåœ¨ç•Œé¢æ—¥å¿—ä¸­ã€‚
  *
- * Ê¹ÓÃ MinGW-w64 ±àÒë£¬¾²Ì¬Á´½Ó£¬³ıÈÎºÎ Windows ¶¼×Ô´øµÄ
- * DLL£¨comctl32¡¢comdlg32£©ÍâÎŞÆäËûÒÀÀµ¡£
+ * ä½¿ç”¨ MinGW-w64 ç¼–è¯‘ï¼Œé™æ€é“¾æ¥ï¼Œé™¤ä»»ä½• Windows éƒ½è‡ªå¸¦çš„
+ * DLLï¼ˆcomctl32ã€comdlg32ï¼‰å¤–æ— å…¶ä»–ä¾èµ–ã€‚
+ *
+ * æœ¬ç¨‹åºå…¨éƒ¨ä½¿ç”¨ Unicodeï¼ˆWï¼‰ç‰ˆæ¥å£ä¸ L"" å®½å­—ç¬¦ä¸²ï¼Œå› æ­¤ç•Œé¢ä¸­çš„
+ * ä¸­æ–‡ï¼ˆä»¥åŠä»»æ„å…¶ä»–è¯­è¨€æ–‡å­—ï¼‰åœ¨ä»»æ„è¯­è¨€ç‰ˆæœ¬çš„ Windows ä¸Šéƒ½èƒ½æ­£ç¡®
+ * æ˜¾ç¤ºï¼Œä¸å†ä¾èµ–ç³»ç»Ÿçš„ ANSI ä»£ç é¡µï¼ˆä¾‹å¦‚ä¸­æ–‡ Windows çš„ GBKï¼‰ã€‚
+ * ä»…è°ƒç”¨ outguess.exe ç­‰åå°å­è¿›ç¨‹çš„ç¯èŠ‚ä»ä½¿ç”¨ A ç‰ˆæ¥å£ä¸ ASCII
+ * çŸ­è·¯å¾„ï¼ˆ8.3 åç§°ï¼‰ï¼Œä»¥ä¿è¯å­è¿›ç¨‹åœ¨ä»»æ„ä»£ç é¡µä¸‹éƒ½èƒ½æ­£ç¡®æ‰“å¼€æ–‡ä»¶ã€‚
  */
 #include <windows.h>
 #include <commctrl.h>
@@ -14,11 +20,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "comdlg32.lib")
 
-/* ---- ¿Ø¼ş ID ---- */
+/* ---- æ§ä»¶ ID ---- */
 #define ID_RADIO_EMBED   100
 #define ID_RADIO_EXTRACT 101
 #define ID_EDIT_IMGIN    110
@@ -57,61 +64,103 @@ static HFONT hFont;
 static unsigned long long lastPayloadBytes;
 static int operationRunning;
 
-static void AddHistory(HWND control, const char *value)
+static void AddHistory(HWND control, const wchar_t *value)
 {
 	if (!value[0])
 		return;
-	if (SendMessageA(control, CB_FINDSTRINGEXACT, (WPARAM)-1, (LPARAM)value) == CB_ERR)
-		SendMessageA(control, CB_ADDSTRING, 0, (LPARAM)value);
+	if (SendMessageW(control, CB_FINDSTRINGEXACT, (WPARAM)-1, (LPARAM)value) == CB_ERR)
+		SendMessageW(control, CB_ADDSTRING, 0, (LPARAM)value);
 }
 
 static void CopyLogToClipboard(void)
 {
-	int length = GetWindowTextLengthA(hLog);
+	int length = GetWindowTextLengthW(hLog);
 	HGLOBAL memory;
-	char *text;
+	wchar_t *text;
 	if (length <= 0 || !OpenClipboard(hMain))
 		return;
-	memory = GlobalAlloc(GMEM_MOVEABLE, (SIZE_T)length + 1);
+	memory = GlobalAlloc(GMEM_MOVEABLE, (SIZE_T)(length + 1) * sizeof(wchar_t));
 	if (!memory) {
 		CloseClipboard();
 		return;
 	}
-	text = (char *)GlobalLock(memory);
-	GetWindowTextA(hLog, text, length + 1);
+	text = (wchar_t *)GlobalLock(memory);
+	GetWindowTextW(hLog, text, length + 1);
 	GlobalUnlock(memory);
 	EmptyClipboard();
-	SetClipboardData(CF_TEXT, memory);
+	SetClipboardData(CF_UNICODETEXT, memory);
 	CloseClipboard();
 }
 
 static void RememberCurrentPaths(void)
 {
-	char value[MAX_PATH];
-	GetWindowTextA(hImgIn, value, sizeof(value));
+	wchar_t value[MAX_PATH];
+	GetWindowTextW(hImgIn, value, sizeof(value) / sizeof(value[0]));
 	AddHistory(hImgIn, value);
-	GetWindowTextA(hMsgFile, value, sizeof(value));
+	GetWindowTextW(hMsgFile, value, sizeof(value) / sizeof(value[0]));
 	AddHistory(hMsgFile, value);
-	GetWindowTextA(hImgOut, value, sizeof(value));
+	GetWindowTextW(hImgOut, value, sizeof(value) / sizeof(value[0]));
 	AddHistory(hImgOut, value);
 }
 
-static void QueueLog(const char *text)
+static void QueueLog(const wchar_t *text)
 {
-	size_t length = strlen(text);
-	char *copy = (char *)malloc(length + 1);
+	size_t length = wcslen(text);
+	wchar_t *copy = (wchar_t *)malloc((length + 1) * sizeof(wchar_t));
 	if (!copy)
 		return;
-	memcpy(copy, text, length + 1);
-	if (!PostMessageA(hMain, WM_LOG_APPEND, 0, (LPARAM)copy))
+	wcscpy(copy, text);
+	if (!PostMessageW(hMain, WM_LOG_APPEND, 0, (LPARAM)copy))
 		free(copy);
 }
 
-static void QueueLogLine(const char *text)
+static void QueueLogLine(const wchar_t *text)
 {
-	char line[4096];
-	snprintf(line, sizeof(line), "%s\r\n", text);
+	wchar_t line[4096];
+	_snwprintf(line, sizeof(line) / sizeof(line[0]), L"%s\r\n", text);
 	QueueLog(line);
+}
+
+/* æŠŠå¤–ç•Œï¼ˆoutguess.exe è¾“å‡ºã€è·¯å¾„ç­‰ï¼‰ä»¥ CP_ACP ç¼–ç çš„å­—èŠ‚ä¸²åŠ å…¥æ—¥å¿— */
+static void QueueLogAcp(const char *text)
+{
+	int wlen = MultiByteToWideChar(CP_ACP, 0, text, -1, NULL, 0);
+	if (wlen <= 0)
+		return;
+	wchar_t *w = (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t));
+	if (!w)
+		return;
+	MultiByteToWideChar(CP_ACP, 0, text, -1, w, wlen);
+	QueueLog(w);
+	free(w);
+}
+
+static void AppendLog(const wchar_t *txt)
+{
+	int len = GetWindowTextLengthW(hLog);
+	SendMessageW(hLog, EM_SETSEL, len, len);
+	SendMessageW(hLog, EM_REPLACESEL, FALSE, (LPARAM)txt);
+	SendMessageW(hLog, EM_SCROLLCARET, 0, 0);
+}
+
+static void AppendLogLine(const wchar_t *txt)
+{
+	AppendLog(txt);
+	AppendLog(L"\r\n");
+}
+
+/* æŠŠå¤–ç•Œä»¥ CP_ACP ç¼–ç çš„å­—èŠ‚ä¸²ç›´æ¥è¿½åŠ åˆ°æ—¥å¿—ï¼ˆç”¨äº UI çº¿ç¨‹å†…ï¼‰ */
+static void AppendLogAcp(const char *text)
+{
+	int wlen = MultiByteToWideChar(CP_ACP, 0, text, -1, NULL, 0);
+	if (wlen <= 0)
+		return;
+	wchar_t *w = (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t));
+	if (!w)
+		return;
+	MultiByteToWideChar(CP_ACP, 0, text, -1, w, wlen);
+	AppendLog(w);
+	free(w);
 }
 
 typedef struct {
@@ -120,27 +169,18 @@ typedef struct {
 	int embedding;
 } RunContext;
 
-/* µ±Ç°Ä£Ê½£º1 = Òş²Ø£¬0 = ÌáÈ¡ */
+/* å½“å‰æ¨¡å¼ï¼š1 = éšè—ï¼Œ0 = æå– */
 static int ModoEmbutir(void)
 {
-	return SendMessage(hRadioEmbed, BM_GETCHECK, 0, 0) == BST_CHECKED;
+	return SendMessageW(hRadioEmbed, BM_GETCHECK, 0, 0) == BST_CHECKED;
 }
 
-static void AppendLog(const char *txt)
+static void AppendLogReady(void)
 {
-	int len = GetWindowTextLength(hLog);
-	SendMessage(hLog, EM_SETSEL, len, len);
-	SendMessage(hLog, EM_REPLACESEL, FALSE, (LPARAM)txt);
-	SendMessage(hLog, EM_SCROLLCARET, 0, 0);
+	AppendLogLine(L"OutGuess å›¾å½¢ç•Œé¢å·²å°±ç»ªã€‚è¯·é€‰æ‹©æ¨¡å¼ã€å¡«å†™å­—æ®µå¹¶ç‚¹å‡»æ‰§è¡ŒæŒ‰é’®ã€‚");
 }
 
-static void AppendLogLine(const char *txt)
-{
-	AppendLog(txt);
-	AppendLog("\r\n");
-}
-
-/* ¹¹Ôì outguess.exe Â·¾¶£ºÓë±¾³ÌĞòÍ¬Ò»Ä¿Â¼ */
+/* æ„é€  outguess.exe è·¯å¾„ï¼šä¸æœ¬ç¨‹åºåŒä¸€ç›®å½• */
 static void GetOutguessPath(char *buf, DWORD bufsize)
 {
 	char self[MAX_PATH];
@@ -153,9 +193,9 @@ static void GetOutguessPath(char *buf, DWORD bufsize)
 	snprintf(buf, bufsize, "%soutguess.exe", self);
 }
 
-static int BrowseOpen(HWND owner, char *buf, DWORD bufsize, const char *filter, const char *title)
+static int BrowseOpen(HWND owner, wchar_t *buf, DWORD bufsize, const wchar_t *filter, const wchar_t *title)
 {
-	OPENFILENAMEA ofn;
+	OPENFILENAMEW ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = owner;
@@ -164,12 +204,12 @@ static int BrowseOpen(HWND owner, char *buf, DWORD bufsize, const char *filter, 
 	ofn.lpstrFilter = filter;
 	ofn.lpstrTitle = title;
 	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-	return GetOpenFileNameA(&ofn);
+	return GetOpenFileNameW(&ofn);
 }
 
-static int BrowseSave(HWND owner, char *buf, DWORD bufsize, const char *filter, const char *title, const char *defExt)
+static int BrowseSave(HWND owner, wchar_t *buf, DWORD bufsize, const wchar_t *filter, const wchar_t *title, const wchar_t *defExt)
 {
-	OPENFILENAMEA ofn;
+	OPENFILENAMEW ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = owner;
@@ -179,23 +219,20 @@ static int BrowseSave(HWND owner, char *buf, DWORD bufsize, const char *filter, 
 	ofn.lpstrTitle = title;
 	ofn.lpstrDefExt = defExt;
 	ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-	return GetSaveFileNameA(&ofn);
+	return GetSaveFileNameW(&ofn);
 }
 
-/* ÓÃ¸ø¶¨²ÎÊıÔËĞĞ outguess.exe£¬²¶»ñ stdout+stderr ²¢Ğ´ÈëÈÕÖ¾¡£
- * ·µ»ØÍË³öÂë£¨Æô¶¯Ê§°Ü·µ»Ø -1£©¡£ */
+/* ç”¨ç»™å®šå‚æ•°è¿è¡Œ outguess.exeï¼Œæ•è· stdout+stderr å¹¶å†™å…¥æ—¥å¿—ã€‚
+ * è¿”å›é€€å‡ºç ï¼ˆå¯åŠ¨å¤±è´¥è¿”å› -1ï¼‰ã€‚ */
 static int RunOutguess(const char *args)
 {
 	char exePath[MAX_PATH];
 	GetOutguessPath(exePath, MAX_PATH);
 
 	if (GetFileAttributesA(exePath) == INVALID_FILE_ATTRIBUTES) {
-		char message[MAX_PATH + 128];
-		snprintf(message, sizeof(message),
-			"Î´ÕÒµ½ outguess.exe£¬Â·¾¶Îª£º\r\n%s\r\n\r\n"
-			"Çë½« outguess-gui.exe Óë outguess.exe ·ÅÔÚÍ¬Ò»Ä¿Â¼ÏÂ¡£",
-			exePath);
-		QueueLogLine(message);
+		QueueLogLine(L"æœªæ‰¾åˆ° outguess.exeï¼Œè·¯å¾„ä¸ºï¼š");
+		QueueLogAcp(exePath);
+		QueueLogLine(L"è¯·å°† outguess-gui.exe ä¸ outguess.exe æ”¾åœ¨åŒä¸€ç›®å½•ä¸‹ã€‚");
 		return -1;
 	}
 
@@ -209,7 +246,7 @@ static int RunOutguess(const char *args)
 
 	HANDLE hReadPipe, hWritePipe;
 	if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
-		QueueLogLine("[´íÎó] ´´½¨Êä³ö¹ÜµÀÊ§°Ü");
+		QueueLogLine(L"[é”™è¯¯] åˆ›å»ºè¾“å‡ºç®¡é“å¤±è´¥");
 		return -1;
 	}
 	SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
@@ -226,8 +263,8 @@ static int RunOutguess(const char *args)
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&pi, sizeof(pi));
 
-	QueueLogLine("---");
-	QueueLogLine(cmdline);
+	QueueLogLine(L"---");
+	QueueLogAcp(cmdline);
 
 	BOOL ok = CreateProcessA(NULL, cmdline, NULL, NULL, TRUE,
 	                          CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
@@ -235,7 +272,7 @@ static int RunOutguess(const char *args)
 
 	if (!ok) {
 		CloseHandle(hReadPipe);
-		QueueLogLine("[´íÎó] ÎŞ·¨Æô¶¯ outguess.exe");
+		QueueLogLine(L"[é”™è¯¯] æ— æ³•å¯åŠ¨ outguess.exe");
 		return -1;
 	}
 
@@ -243,7 +280,7 @@ static int RunOutguess(const char *args)
 	DWORD n;
 	while (ReadFile(hReadPipe, buf, sizeof(buf) - 1, &n, NULL) && n > 0) {
 		buf[n] = '\0';
-		QueueLog(buf);
+		QueueLogAcp(buf);
 	}
 	CloseHandle(hReadPipe);
 
@@ -289,14 +326,14 @@ static int ValidateOutputPath(const char *input, const char *output)
 	char parent[MAX_PATH];
 	DWORD attributes;
 	if (_stricmp(input, output) == 0) {
-		MessageBoxA(hMain, "Êä³öÎÄ¼ş±ØĞëÓëÊäÈëÎÄ¼ş²»Í¬¡£",
-			"Ä¿±êÎŞĞ§", MB_ICONWARNING);
+		MessageBoxW(hMain, L"è¾“å‡ºæ–‡ä»¶å¿…é¡»ä¸è¾“å…¥æ–‡ä»¶ä¸åŒã€‚",
+			L"ç›®æ ‡æ— æ•ˆ", MB_ICONWARNING);
 		return 0;
 	}
 	attributes = GetFileAttributesA(output);
 	if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		MessageBoxA(hMain, "Ö¸¶¨µÄÄ¿±êÊÇÒ»¸öÎÄ¼ş¼Ğ£¬²»ÊÇÎÄ¼ş¡£",
-			"Ä¿±êÎŞĞ§", MB_ICONWARNING);
+		MessageBoxW(hMain, L"æŒ‡å®šçš„ç›®æ ‡æ˜¯ä¸€ä¸ªæ–‡ä»¶å¤¹ï¼Œä¸æ˜¯æ–‡ä»¶ã€‚",
+			L"ç›®æ ‡æ— æ•ˆ", MB_ICONWARNING);
 		return 0;
 	}
 	strncpy(parent, output, sizeof(parent) - 1);
@@ -310,13 +347,13 @@ static int ValidateOutputPath(const char *input, const char *output)
 		strcpy(parent, ".");
 	attributes = GetFileAttributesA(parent);
 	if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		MessageBoxA(hMain, "Ä¿±êÎÄ¼ş¼Ğ²»´æÔÚ¡£", "Ä¿±êÎŞĞ§", MB_ICONWARNING);
+		MessageBoxW(hMain, L"ç›®æ ‡æ–‡ä»¶å¤¹ä¸å­˜åœ¨ã€‚", L"ç›®æ ‡æ— æ•ˆ", MB_ICONWARNING);
 		return 0;
 	}
 	attributes = GetFileAttributesA(output);
 	if (attributes != INVALID_FILE_ATTRIBUTES) {
-		if (MessageBoxA(hMain, "Ä¿±êÎÄ¼şÒÑ´æÔÚ£¬ÊÇ·ñÌæ»»£¿",
-			"È·ÈÏÌæ»»", MB_YESNO | MB_ICONQUESTION) != IDYES)
+		if (MessageBoxW(hMain, L"ç›®æ ‡æ–‡ä»¶å·²å­˜åœ¨ï¼Œæ˜¯å¦æ›¿æ¢ï¼Ÿ",
+			L"ç¡®è®¤æ›¿æ¢", MB_YESNO | MB_ICONQUESTION) != IDYES)
 			return 0;
 	}
 	return 1;
@@ -370,24 +407,24 @@ static DWORD WINAPI RunThread(LPVOID parameter)
 	int result = RunOutguess(context->args);
 	if (context->tempMessageFile[0] != '\0')
 		DeleteFileA(context->tempMessageFile);
-	PostMessageA(hMain, WM_RUN_COMPLETE, (WPARAM)result, (LPARAM)context->embedding);
+	PostMessageW(hMain, WM_RUN_COMPLETE, (WPARAM)result, (LPARAM)context->embedding);
 	free(context);
 	return 0;
 }
 
-static void OpenContainingFolder(const char *path)
+static void OpenContainingFolder(const wchar_t *path)
 {
-	char folder[MAX_PATH];
-	strncpy(folder, path, sizeof(folder) - 1);
-	folder[sizeof(folder) - 1] = '\0';
-	char *slash = strrchr(folder, '\\');
+	wchar_t folder[MAX_PATH];
+	wcsncpy(folder, path, sizeof(folder) / sizeof(folder[0]) - 1);
+	folder[sizeof(folder) / sizeof(folder[0]) - 1] = L'\0';
+	wchar_t *slash = wcsrchr(folder, L'\\');
 	if (!slash)
-		slash = strrchr(folder, '/');
+		slash = wcsrchr(folder, L'/');
 	if (slash)
-		*slash = '\0';
+		*slash = L'\0';
 	else
-		strcpy(folder, ".");
-	ShellExecuteA(hMain, "open", folder, NULL, NULL, SW_SHOWNORMAL);
+		wcscpy(folder, L".");
+	ShellExecuteW(hMain, L"open", folder, NULL, NULL, SW_SHOWNORMAL);
 }
 
 static void RunCapacity(void)
@@ -396,7 +433,7 @@ static void RunCapacity(void)
 	GetProcessPath(hImgIn, image, sizeof(image));
 	GetWindowTextA(hQuality, quality, sizeof(quality));
 	if (!image[0] || GetFileAttributesA(image) == INVALID_FILE_ATTRIBUTES) {
-		MessageBoxA(hMain, "ÇëÏÈÑ¡ÔñÒ»ÕÅÓĞĞ§µÄ JPEG Í¼Æ¬¡£", "ÈİÁ¿", MB_ICONWARNING);
+		MessageBoxW(hMain, L"è¯·å…ˆé€‰æ‹©ä¸€å¼ æœ‰æ•ˆçš„ JPEG å›¾ç‰‡ã€‚", L"å®¹é‡", MB_ICONWARNING);
 		return;
 	}
 	GetOutguessPath(tool, sizeof(tool));
@@ -408,8 +445,8 @@ static void RunCapacity(void)
 	snprintf(command, sizeof(command), "-e -p %s %s", quality, quotedImage);
 	char fullCommand[4096];
 	snprintf(fullCommand, sizeof(fullCommand), "\"%s\" %s", tool, command);
-	AppendLogLine("--- ÈİÁ¿ ---");
-	AppendLogLine(fullCommand);
+	AppendLogLine(L"--- å®¹é‡ ---");
+	AppendLogAcp(fullCommand);
 	STARTUPINFOA startup;
 	PROCESS_INFORMATION process;
 	SECURITY_ATTRIBUTES security;
@@ -421,7 +458,7 @@ static void RunCapacity(void)
 	security.nLength = sizeof(security);
 	security.bInheritHandle = TRUE;
 	if (!CreatePipe(&readPipe, &writePipe, &security, 0)) {
-		AppendLogLine("[´íÎó] ÎŞ·¨»ñÈ¡ÈİÁ¿¡£");
+		AppendLogLine(L"[é”™è¯¯] æ— æ³•è·å–å®¹é‡ã€‚");
 		return;
 	}
 	SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
@@ -433,7 +470,7 @@ static void RunCapacity(void)
 		NULL, NULL, &startup, &process)) {
 		CloseHandle(readPipe);
 		CloseHandle(writePipe);
-		AppendLogLine("[´íÎó] Î´ÕÒµ½ capacity.exe¡£");
+		AppendLogLine(L"[é”™è¯¯] æœªæ‰¾åˆ° capacity.exeã€‚");
 		return;
 	}
 	CloseHandle(writePipe);
@@ -441,7 +478,7 @@ static void RunCapacity(void)
 	DWORD bytesRead;
 	while (ReadFile(readPipe, output, sizeof(output) - 1, &bytesRead, NULL) && bytesRead > 0) {
 		output[bytesRead] = '\0';
-		AppendLog(output);
+		AppendLogAcp(output);
 	}
 	CloseHandle(readPipe);
 	WaitForSingleObject(process.hProcess, INFINITE);
@@ -459,31 +496,31 @@ static void OnRun(void)
 	GetWindowTextW(hMsgFile, messageText, sizeof(messageText) / sizeof(messageText[0]));
 	GetProcessPath(hImgOut, imgout, sizeof(imgout));
 	if (!GetUtf8ControlText(hKey, key, sizeof(key))) {
-		MessageBoxA(hMain, "ÎŞ·¨¶ÁÈ¡ÊäÈëµÄÃÜÔ¿¡£", "´íÎó", MB_ICONERROR);
+		MessageBoxW(hMain, L"æ— æ³•è¯»å–è¾“å…¥çš„å¯†é’¥ã€‚", L"é”™è¯¯", MB_ICONERROR);
 		return;
 	}
 	GetWindowTextA(hQuality, quality, sizeof(quality));
 	GetWindowTextA(hIter, iterations, sizeof(iterations));
 
 	if (imgin[0] == '\0') {
-		MessageBoxA(hMain, "ÇëÑ¡ÔñÊäÈëµÄ JPEG Í¼Æ¬¡£", "È±ÉÙ×Ö¶Î", MB_ICONWARNING);
+		MessageBoxW(hMain, L"è¯·é€‰æ‹©è¾“å…¥çš„ JPEG å›¾ç‰‡ã€‚", L"ç¼ºå°‘å­—æ®µ", MB_ICONWARNING);
 		return;
 	}
 	if (GetFileAttributesA(imgin) == INVALID_FILE_ATTRIBUTES) {
-		MessageBoxA(hMain, "Î´ÕÒµ½ÊäÈëÍ¼Æ¬¡£", "ÎÄ¼şÎŞĞ§", MB_ICONWARNING);
+		MessageBoxW(hMain, L"æœªæ‰¾åˆ°è¾“å…¥å›¾ç‰‡ã€‚", L"æ–‡ä»¶æ— æ•ˆ", MB_ICONWARNING);
 		return;
 	}
 	int jpegQuality = atoi(quality);
 	int iterationLimit = atoi(iterations);
 	if (ModoEmbutir() && (jpegQuality < 75 || jpegQuality > 100)) {
-		MessageBoxA(hMain, "JPEG ÖÊÁ¿±ØĞëÔÚ 75 µ½ 100 Ö®¼ä¡£", "ÊıÖµÎŞĞ§", MB_ICONWARNING);
+		MessageBoxW(hMain, L"JPEG è´¨é‡å¿…é¡»åœ¨ 75 åˆ° 100 ä¹‹é—´ã€‚", L"æ•°å€¼æ— æ•ˆ", MB_ICONWARNING);
 		return;
 	}
 	if (ModoEmbutir() && (iterationLimit < 0 || iterationLimit > 65535)) {
-		MessageBoxA(hMain, "µü´ú´ÎÊıÏŞÖÆ±ØĞëÔÚ 0 µ½ 65535 Ö®¼ä¡£", "ÊıÖµÎŞĞ§", MB_ICONWARNING);
+		MessageBoxW(hMain, L"è¿­ä»£æ¬¡æ•°é™åˆ¶å¿…é¡»åœ¨ 0 åˆ° 65535 ä¹‹é—´ã€‚", L"æ•°å€¼æ— æ•ˆ", MB_ICONWARNING);
 		return;
 	}
-	int ecc = SendMessage(hEcc, BM_GETCHECK, 0, 0) == BST_CHECKED;
+	int ecc = SendMessageW(hEcc, BM_GETCHECK, 0, 0) == BST_CHECKED;
 	char q_imgin[MAX_PATH + 2], q_msgfile[MAX_PATH + 2], q_imgout[MAX_PATH + 2], q_key[2050], keyArg[2070];
 	QuoteInto(q_imgin, sizeof(q_imgin), imgin);
 	if (key[0] != '\0') {
@@ -495,26 +532,26 @@ static void OnRun(void)
 
 	RunContext *context = (RunContext *)calloc(1, sizeof(RunContext));
 	if (!context) {
-		MessageBoxA(hMain, "ÎŞ·¨Æô¶¯²Ù×÷¡£", "´íÎó", MB_ICONERROR);
+		MessageBoxW(hMain, L"æ— æ³•å¯åŠ¨æ“ä½œã€‚", L"é”™è¯¯", MB_ICONERROR);
 		return;
 	}
 	context->embedding = ModoEmbutir();
 
 	if (ModoEmbutir()) {
 		if (msgfile[0] == '\0') {
-			MessageBoxA(hMain, "ÇëÊäÈëÏûÏ¢»òÑ¡ÔñÎÄ¼ş¡£", "È±ÉÙ×Ö¶Î", MB_ICONWARNING);
+			MessageBoxW(hMain, L"è¯·è¾“å…¥æ¶ˆæ¯æˆ–é€‰æ‹©æ–‡ä»¶ã€‚", L"ç¼ºå°‘å­—æ®µ", MB_ICONWARNING);
 			free(context);
 			return;
 		}
 		if (imgout[0] == '\0') {
-			MessageBoxA(hMain, "ÇëÑ¡ÔñÊä³öÍ¼Æ¬µÄ±£´æÎ»ÖÃ¡£", "È±ÉÙ×Ö¶Î", MB_ICONWARNING);
+			MessageBoxW(hMain, L"è¯·é€‰æ‹©è¾“å‡ºå›¾ç‰‡çš„ä¿å­˜ä½ç½®ã€‚", L"ç¼ºå°‘å­—æ®µ", MB_ICONWARNING);
 			free(context);
 			return;
 		}
-		if (SendMessageA(hNoOverwrite, BM_GETCHECK, 0, 0) == BST_CHECKED &&
+		if (SendMessageW(hNoOverwrite, BM_GETCHECK, 0, 0) == BST_CHECKED &&
 			GetFileAttributesA(imgout) != INVALID_FILE_ATTRIBUTES) {
-			MessageBoxA(hMain, "Êä³öÎÄ¼şÒÑ´æÔÚ£¬ÇÒÒÑ¿ªÆô²»¸²¸ÇÑ¡Ïî¡£",
-				"Ä¿±êÊÜ±£»¤", MB_ICONWARNING);
+			MessageBoxW(hMain, L"è¾“å‡ºæ–‡ä»¶å·²å­˜åœ¨ï¼Œä¸”å·²å¼€å¯ä¸è¦†ç›–é€‰é¡¹ã€‚",
+				L"ç›®æ ‡å—ä¿æŠ¤", MB_ICONWARNING);
 			free(context);
 			return;
 		}
@@ -522,8 +559,8 @@ static void OnRun(void)
 			free(context);
 			return;
 		}
-		if (MessageBoxA(hMain, "¿ªÊ¼½«ÏûÏ¢Òş²Øµ½Í¼Æ¬ÖĞ£¿",
-			"È·ÈÏ²Ù×÷", MB_YESNO | MB_ICONQUESTION) != IDYES) {
+		if (MessageBoxW(hMain, L"å¼€å§‹å°†æ¶ˆæ¯éšè—åˆ°å›¾ç‰‡ä¸­ï¼Ÿ",
+			L"ç¡®è®¤æ“ä½œ", MB_YESNO | MB_ICONQUESTION) != IDYES) {
 			free(context);
 			return;
 		}
@@ -533,7 +570,7 @@ static void OnRun(void)
 		    (messageAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
 			if (!CreateTempMessageFile(messageText, context->tempMessageFile,
 			    sizeof(context->tempMessageFile))) {
-				MessageBoxA(hMain, "ÎŞ·¨×¼±¸ÏûÏ¢¡£", "´íÎó", MB_ICONERROR);
+				MessageBoxW(hMain, L"æ— æ³•å‡†å¤‡æ¶ˆæ¯ã€‚", L"é”™è¯¯", MB_ICONERROR);
 				free(context);
 				return;
 			}
@@ -551,14 +588,14 @@ static void OnRun(void)
 		}
 	} else {
 		if (msgfile[0] == '\0') {
-			MessageBoxA(hMain, "ÇëÑ¡ÔñÌáÈ¡ÏûÏ¢µÄ±£´æÎ»ÖÃ¡£", "È±ÉÙ×Ö¶Î", MB_ICONWARNING);
+			MessageBoxW(hMain, L"è¯·é€‰æ‹©æå–æ¶ˆæ¯çš„ä¿å­˜ä½ç½®ã€‚", L"ç¼ºå°‘å­—æ®µ", MB_ICONWARNING);
 			free(context);
 			return;
 		}
-		if (SendMessageA(hNoOverwrite, BM_GETCHECK, 0, 0) == BST_CHECKED &&
+		if (SendMessageW(hNoOverwrite, BM_GETCHECK, 0, 0) == BST_CHECKED &&
 			GetFileAttributesA(msgfile) != INVALID_FILE_ATTRIBUTES) {
-			MessageBoxA(hMain, "ÌáÈ¡µÄÎÄ¼şÒÑ´æÔÚ£¬ÇÒÒÑ¿ªÆô²»¸²¸ÇÑ¡Ïî¡£",
-				"Ä¿±êÊÜ±£»¤", MB_ICONWARNING);
+			MessageBoxW(hMain, L"æå–çš„æ–‡ä»¶å·²å­˜åœ¨ï¼Œä¸”å·²å¼€å¯ä¸è¦†ç›–é€‰é¡¹ã€‚",
+				L"ç›®æ ‡å—ä¿æŠ¤", MB_ICONWARNING);
 			free(context);
 			return;
 		}
@@ -566,8 +603,8 @@ static void OnRun(void)
 			free(context);
 			return;
 		}
-		if (MessageBoxA(hMain, "¿ªÊ¼ÌáÈ¡ÏûÏ¢£¿",
-			"È·ÈÏ²Ù×÷", MB_YESNO | MB_ICONQUESTION) != IDYES) {
+		if (MessageBoxW(hMain, L"å¼€å§‹æå–æ¶ˆæ¯ï¼Ÿ",
+			L"ç¡®è®¤æ“ä½œ", MB_YESNO | MB_ICONQUESTION) != IDYES) {
 			free(context);
 			return;
 		}
@@ -596,29 +633,29 @@ static void OnRun(void)
 				lastPayloadBytes = (unsigned long long)utf8Length - 1;
 		}
 	}
-	char status[128];
+	wchar_t status[128];
 	if (context->embedding)
-		snprintf(status, sizeof(status), "Payload: %llu ×Ö½Ú | ÈİÁ¿¼ûÈÕÖ¾", lastPayloadBytes);
+		swprintf(status, 128, L"Payload: %llu å­—èŠ‚ | å®¹é‡è§æ—¥å¿—", lastPayloadBytes);
 	else
-		strcpy(status, "×¼±¸ÌáÈ¡ÖĞ...");
-	SetWindowTextA(hStatus, status);
+		wcscpy(status, L"å‡†å¤‡æå–ä¸­...");
+	SetWindowTextW(hStatus, status);
 
 	EnableWindow(GetDlgItem(hMain, ID_BTN_RUN), FALSE);
 	EnableWindow(hBtnOpen, FALSE);
 	operationRunning = 1;
-	SendMessage(hProgress, PBM_SETMARQUEE, TRUE, 30);
-	SetWindowTextA(hStatus, context->embedding ? "ÕıÔÚÒş²ØÏûÏ¢..." : "ÕıÔÚÌáÈ¡ÏûÏ¢...");
+	SendMessageW(hProgress, PBM_SETMARQUEE, TRUE, 30);
+	SetWindowTextW(hStatus, context->embedding ? L"æ­£åœ¨éšè—æ¶ˆæ¯..." : L"æ­£åœ¨æå–æ¶ˆæ¯...");
 	HANDLE thread = CreateThread(NULL, 0, RunThread, context, 0, NULL);
 	if (!thread) {
 		if (context->tempMessageFile[0] != '\0')
 			DeleteFileA(context->tempMessageFile);
 		free(context);
-		SendMessage(hProgress, PBM_SETMARQUEE, FALSE, 0);
+		SendMessageW(hProgress, PBM_SETMARQUEE, FALSE, 0);
 		EnableWindow(GetDlgItem(hMain, ID_BTN_RUN), TRUE);
 		EnableWindow(hBtnOpen, TRUE);
 		operationRunning = 0;
-		SetWindowTextA(hStatus, "¾ÍĞ÷");
-		MessageBoxA(hMain, "ÎŞ·¨Æô¶¯²Ù×÷¡£", "´íÎó", MB_ICONERROR);
+		SetWindowTextW(hStatus, L"å°±ç»ª");
+		MessageBoxW(hMain, L"æ— æ³•å¯åŠ¨æ“ä½œã€‚", L"é”™è¯¯", MB_ICONERROR);
 		return;
 	}
 	CloseHandle(thread);
@@ -627,7 +664,7 @@ static void OnRun(void)
 static void UpdateModeVisibility(void)
 {
 	int embutir = ModoEmbutir();
-	SetWindowTextA(hLblMsgFile, embutir ? "ÒªÒş²ØµÄÏûÏ¢»òÎÄ¼ş£º" : "ÌáÈ¡ÏûÏ¢µÄ±£´æÎ»ÖÃ£º");
+	SetWindowTextW(hLblMsgFile, embutir ? L"è¦éšè—çš„æ¶ˆæ¯æˆ–æ–‡ä»¶ï¼š" : L"æå–æ¶ˆæ¯çš„ä¿å­˜ä½ç½®ï¼š");
 	ShowWindow(hLblImgOut, embutir ? SW_SHOW : SW_HIDE);
 	ShowWindow(hImgOut, embutir ? SW_SHOW : SW_HIDE);
 	ShowWindow(hBtnImgOut, embutir ? SW_SHOW : SW_HIDE);
@@ -645,103 +682,103 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
 		#define MKSTATIC(txt, x, y, w, h) do { \
-			HWND h_ = CreateWindowA("STATIC", txt, WS_CHILD | WS_VISIBLE, \
+			HWND h_ = CreateWindowW(L"STATIC", txt, WS_CHILD | WS_VISIBLE, \
 				x, y, w, h, hwnd, NULL, NULL, NULL); \
-			SendMessage(h_, WM_SETFONT, (WPARAM)hFont, TRUE); \
+			SendMessageW(h_, WM_SETFONT, (WPARAM)hFont, TRUE); \
 		} while (0)
 
-		MKSTATIC("Ä£Ê½£º", 12, 14, 60, 20);
-		hRadioEmbed = CreateWindowA("BUTTON", "Òş²ØÏûÏ¢",
+		MKSTATIC(L"æ¨¡å¼ï¼š", 12, 14, 60, 20);
+		hRadioEmbed = CreateWindowW(L"BUTTON", L"éšè—æ¶ˆæ¯",
 			WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON | WS_GROUP,
 			80, 12, 160, 20, hwnd, (HMENU)ID_RADIO_EMBED, NULL, NULL);
-		hRadioExtract = CreateWindowA("BUTTON", "ÌáÈ¡ÏûÏ¢",
+		hRadioExtract = CreateWindowW(L"BUTTON", L"æå–æ¶ˆæ¯",
 			WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON,
 			250, 12, 160, 20, hwnd, (HMENU)ID_RADIO_EXTRACT, NULL, NULL);
-		SendMessage(hRadioEmbed, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hRadioExtract, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hRadioEmbed, BM_SETCHECK, BST_CHECKED, 0);
+		SendMessageW(hRadioEmbed, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hRadioExtract, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hRadioEmbed, BM_SETCHECK, BST_CHECKED, 0);
 
-		MKSTATIC("ÊäÈë JPEG Í¼Æ¬£º", 12, 50, 200, 20);
-		hImgIn = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
+		MKSTATIC(L"è¾“å…¥ JPEG å›¾ç‰‡ï¼š", 12, 50, 200, 20);
+		hImgIn = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
 			12, 72, 470, 24, hwnd, (HMENU)ID_EDIT_IMGIN, NULL, NULL);
-		hBtnImgIn = CreateWindowA("BUTTON", "ä¯ÀÀ...", WS_CHILD | WS_VISIBLE,
+		hBtnImgIn = CreateWindowW(L"BUTTON", L"æµè§ˆ...", WS_CHILD | WS_VISIBLE,
 			492, 72, 100, 24, hwnd, (HMENU)ID_BTN_IMGIN, NULL, NULL);
-		SendMessage(hImgIn, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hImgIn, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hLblMsgFile = CreateWindowA("STATIC", "ÒªÒş²ØµÄÏûÏ¢»òÎÄ¼ş£º", WS_CHILD | WS_VISIBLE,
+		hLblMsgFile = CreateWindowW(L"STATIC", L"è¦éšè—çš„æ¶ˆæ¯æˆ–æ–‡ä»¶ï¼š", WS_CHILD | WS_VISIBLE,
 			12, 108, 400, 20, hwnd, (HMENU)ID_LBL_MSGFILE, NULL, NULL);
-		hMsgFile = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
+		hMsgFile = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
 			12, 130, 470, 24, hwnd, (HMENU)ID_EDIT_MSGFILE, NULL, NULL);
-		hBtnMsgFile = CreateWindowA("BUTTON", "ä¯ÀÀ...", WS_CHILD | WS_VISIBLE,
+		hBtnMsgFile = CreateWindowW(L"BUTTON", L"æµè§ˆ...", WS_CHILD | WS_VISIBLE,
 			492, 130, 100, 24, hwnd, (HMENU)ID_BTN_MSGFILE, NULL, NULL);
-		SendMessage(hLblMsgFile, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hMsgFile, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hLblMsgFile, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hMsgFile, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hLblImgOut = CreateWindowA("STATIC", "Êä³öÍ¼Æ¬£¨º¬ÏûÏ¢£©£º", WS_CHILD | WS_VISIBLE,
+		hLblImgOut = CreateWindowW(L"STATIC", L"è¾“å‡ºå›¾ç‰‡ï¼ˆå«æ¶ˆæ¯ï¼‰ï¼š", WS_CHILD | WS_VISIBLE,
 			12, 166, 300, 20, hwnd, (HMENU)ID_LBL_IMGOUT, NULL, NULL);
-		hImgOut = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
+		hImgOut = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
 			12, 188, 470, 24, hwnd, (HMENU)ID_EDIT_IMGOUT, NULL, NULL);
-		hBtnImgOut = CreateWindowA("BUTTON", "ä¯ÀÀ...", WS_CHILD | WS_VISIBLE,
+		hBtnImgOut = CreateWindowW(L"BUTTON", L"æµè§ˆ...", WS_CHILD | WS_VISIBLE,
 			492, 188, 100, 24, hwnd, (HMENU)ID_BTN_IMGOUT, NULL, NULL);
-		SendMessage(hLblImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hLblImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hLblQuality = CreateWindowA("STATIC", "JPEG ÖÊÁ¿£¨75-100£©£º", WS_CHILD | WS_VISIBLE,
+		hLblQuality = CreateWindowW(L"STATIC", L"JPEG è´¨é‡ï¼ˆ75-100ï¼‰ï¼š", WS_CHILD | WS_VISIBLE,
 			12, 224, 150, 20, hwnd, (HMENU)ID_LBL_QUALITY, NULL, NULL);
-		hQuality = CreateWindowA("EDIT", "75", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
+		hQuality = CreateWindowW(L"EDIT", L"75", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
 			165, 222, 60, 24, hwnd, (HMENU)ID_EDIT_QUALITY, NULL, NULL);
-		hLblIter = CreateWindowA("STATIC", "µü´ú´ÎÊıÏŞÖÆ£º", WS_CHILD | WS_VISIBLE,
+		hLblIter = CreateWindowW(L"STATIC", L"è¿­ä»£æ¬¡æ•°é™åˆ¶ï¼š", WS_CHILD | WS_VISIBLE,
 			245, 224, 130, 20, hwnd, (HMENU)ID_LBL_ITER, NULL, NULL);
-		hIter = CreateWindowA("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
+		hIter = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
 			378, 222, 75, 24, hwnd, (HMENU)ID_EDIT_ITER, NULL, NULL);
 
-		MKSTATIC("ÃÜÔ¿£¨¿ÉÑ¡£©£º", 12, 260, 180, 20);
-		hKey = CreateWindowA("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_PASSWORD | ES_AUTOHSCROLL,
+		MKSTATIC(L"å¯†é’¥ï¼ˆå¯é€‰ï¼‰ï¼š", 12, 260, 180, 20);
+		hKey = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_PASSWORD | ES_AUTOHSCROLL,
 			12, 282, 300, 24, hwnd, (HMENU)ID_EDIT_KEY, NULL, NULL);
-		hShowKey = CreateWindowA("BUTTON", "ÏÔÊ¾", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+		hShowKey = CreateWindowW(L"BUTTON", L"æ˜¾ç¤º", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 			322, 284, 90, 20, hwnd, (HMENU)ID_CHK_SHOWKEY, NULL, NULL);
-		SendMessage(hKey, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hShowKey, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hKey, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hShowKey, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hEcc = CreateWindowA("BUTTON", "Ê¹ÓÃ¾À´í£¨¸üÎÈ½¡£©",
+		hEcc = CreateWindowW(L"BUTTON", L"ä½¿ç”¨çº é”™ï¼ˆæ›´ç¨³å¥ï¼‰",
 			WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 			12, 322, 320, 20, hwnd, (HMENU)ID_CHK_ECC, NULL, NULL);
-		SendMessage(hEcc, WM_SETFONT, (WPARAM)hFont, TRUE);
-		hNoOverwrite = CreateWindowA("BUTTON", "²»¸²¸ÇÒÑ´æÔÚµÄÎÄ¼ş",
+		SendMessageW(hEcc, WM_SETFONT, (WPARAM)hFont, TRUE);
+		hNoOverwrite = CreateWindowW(L"BUTTON", L"ä¸è¦†ç›–å·²å­˜åœ¨çš„æ–‡ä»¶",
 			WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 			12, 346, 300, 20, hwnd, (HMENU)ID_CHK_NO_OVERWRITE, NULL, NULL);
-		SendMessage(hNoOverwrite, BM_SETCHECK, BST_CHECKED, 0);
-		SendMessage(hNoOverwrite, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hNoOverwrite, BM_SETCHECK, BST_CHECKED, 0);
+		SendMessageW(hNoOverwrite, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		CreateWindowA("BUTTON", "Çå¿ÕÈÕÖ¾", WS_CHILD | WS_VISIBLE,
+		CreateWindowW(L"BUTTON", L"æ¸…ç©ºæ—¥å¿—", WS_CHILD | WS_VISIBLE,
 			12, 376, 100, 32, hwnd, (HMENU)ID_BTN_CLEAR, NULL, NULL);
-		hBtnOpen = CreateWindowA("BUTTON", "´ò¿ªÎÄ¼ş¼Ğ", WS_CHILD | WS_VISIBLE,
+		hBtnOpen = CreateWindowW(L"BUTTON", L"æ‰“å¼€æ–‡ä»¶å¤¹", WS_CHILD | WS_VISIBLE,
 			125, 376, 110, 32, hwnd, (HMENU)ID_BTN_OPEN, NULL, NULL);
 		EnableWindow(hBtnOpen, FALSE);
-		hBtnCapacity = CreateWindowA("BUTTON", "²é¿´ÈİÁ¿", WS_CHILD | WS_VISIBLE,
+		hBtnCapacity = CreateWindowW(L"BUTTON", L"æŸ¥çœ‹å®¹é‡", WS_CHILD | WS_VISIBLE,
 			245, 376, 160, 32, hwnd, (HMENU)ID_BTN_CAPACITY, NULL, NULL);
-		hBtnCopyLog = CreateWindowA("BUTTON", "¸´ÖÆÈÕÖ¾", WS_CHILD | WS_VISIBLE,
+		hBtnCopyLog = CreateWindowW(L"BUTTON", L"å¤åˆ¶æ—¥å¿—", WS_CHILD | WS_VISIBLE,
 			12, 414, 100, 28, hwnd, (HMENU)ID_BTN_COPY_LOG, NULL, NULL);
-		SendMessage(hBtnCapacity, WM_SETFONT, (WPARAM)hFont, TRUE);
-		SendMessage(hBtnCopyLog, WM_SETFONT, (WPARAM)hFont, TRUE);
-		CreateWindowA("BUTTON", "Ö´ĞĞ", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+		SendMessageW(hBtnCapacity, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hBtnCopyLog, WM_SETFONT, (WPARAM)hFont, TRUE);
+		CreateWindowW(L"BUTTON", L"æ‰§è¡Œ", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
 			420, 376, 172, 32, hwnd, (HMENU)ID_BTN_RUN, NULL, NULL);
-		SendMessage(GetDlgItem(hwnd, ID_BTN_RUN), WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(GetDlgItem(hwnd, ID_BTN_RUN), WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hStatus = CreateWindowA("STATIC", "¾ÍĞ÷", WS_CHILD | WS_VISIBLE,
+		hStatus = CreateWindowW(L"STATIC", L"å°±ç»ª", WS_CHILD | WS_VISIBLE,
 			125, 418, 280, 20, hwnd, (HMENU)ID_STATUS, NULL, NULL);
-		hProgress = CreateWindowA(PROGRESS_CLASSA, "", WS_CHILD | WS_VISIBLE | PBS_MARQUEE,
+		hProgress = CreateWindowW(PROGRESS_CLASSW, L"", WS_CHILD | WS_VISIBLE | PBS_MARQUEE,
 			420, 414, 172, 16, hwnd, (HMENU)ID_PROGRESS, NULL, NULL);
-		SendMessage(hProgress, PBM_SETMARQUEE, FALSE, 0);
+		SendMessageW(hProgress, PBM_SETMARQUEE, FALSE, 0);
 
-		MKSTATIC("ÔËĞĞÈÕÖ¾", 12, 454, 150, 20);
-		hLog = CreateWindowA("EDIT", "",
+		MKSTATIC(L"è¿è¡Œæ—¥å¿—", 12, 454, 150, 20);
+		hLog = CreateWindowW(L"EDIT", L"",
 			WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL |
 			ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
 			12, 478, 580, 180, hwnd, (HMENU)ID_EDIT_LOG, NULL, NULL);
-		SendMessage(hLog, WM_SETFONT, (WPARAM)hFont, TRUE);
+		SendMessageW(hLog, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		AppendLogLine("OutGuess Í¼ĞÎ½çÃæÒÑ¾ÍĞ÷¡£ÇëÑ¡ÔñÄ£Ê½¡¢ÌîĞ´×Ö¶Î²¢µã»÷Ö´ĞĞ°´Å¥¡£");
+		AppendLogReady();
 		UpdateModeVisibility();
 		DragAcceptFiles(hwnd, TRUE);
 		return 0;
@@ -757,38 +794,38 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 				UpdateModeVisibility();
 			break;
 		case ID_BTN_IMGIN: {
-			char buf[MAX_PATH] = "";
+			wchar_t buf[MAX_PATH] = L"";
 			if (BrowseOpen(hwnd, buf, MAX_PATH,
-			    "JPEG Í¼Æ¬\0*.jpg;*.jpeg\0ËùÓĞÎÄ¼ş\0*.*\0",
-			    "Ñ¡Ôñ JPEG Í¼Æ¬"))
-				SetWindowTextA(hImgIn, buf);
+			    L"JPEG å›¾ç‰‡\0*.jpg;*.jpeg\0æ‰€æœ‰æ–‡ä»¶\0*.*\0",
+			    L"é€‰æ‹© JPEG å›¾ç‰‡"))
+				SetWindowTextW(hImgIn, buf);
 			break;
 		}
 		case ID_BTN_MSGFILE: {
-			char buf[MAX_PATH] = "";
+			wchar_t buf[MAX_PATH] = L"";
 			if (ModoEmbutir()) {
 				if (BrowseOpen(hwnd, buf, MAX_PATH,
-				    "ËùÓĞÎÄ¼ş\0*.*\0", "Ñ¡ÔñÏûÏ¢ÎÄ¼ş"))
-					SetWindowTextA(hMsgFile, buf);
+				    L"æ‰€æœ‰æ–‡ä»¶\0*.*\0", L"é€‰æ‹©æ¶ˆæ¯æ–‡ä»¶"))
+					SetWindowTextW(hMsgFile, buf);
 			} else {
 				if (BrowseSave(hwnd, buf, MAX_PATH,
-				    "ÎÄ±¾ÎÄ¼ş\0*.txt\0ËùÓĞÎÄ¼ş\0*.*\0",
-				    "½«ÌáÈ¡µÄÏûÏ¢±£´æÎª", "txt"))
-					SetWindowTextA(hMsgFile, buf);
+				    L"æ–‡æœ¬æ–‡ä»¶\0*.txt\0æ‰€æœ‰æ–‡ä»¶\0*.*\0",
+				    L"å°†æå–çš„æ¶ˆæ¯ä¿å­˜ä¸º", L"txt"))
+					SetWindowTextW(hMsgFile, buf);
 			}
 			break;
 		}
 		case ID_BTN_IMGOUT: {
-			char buf[MAX_PATH] = "";
+			wchar_t buf[MAX_PATH] = L"";
 			if (BrowseSave(hwnd, buf, MAX_PATH,
-			    "JPEG Í¼Æ¬\0*.jpg\0ËùÓĞÎÄ¼ş\0*.*\0",
-			    "½«Êä³öÍ¼Æ¬±£´æÎª", "jpg"))
-				SetWindowTextA(hImgOut, buf);
+			    L"JPEG å›¾ç‰‡\0*.jpg\0æ‰€æœ‰æ–‡ä»¶\0*.*\0",
+			    L"å°†è¾“å‡ºå›¾ç‰‡ä¿å­˜ä¸º", L"jpg"))
+				SetWindowTextW(hImgOut, buf);
 			break;
 		}
 		case ID_CHK_SHOWKEY: {
-			int show = SendMessage(hShowKey, BM_GETCHECK, 0, 0) == BST_CHECKED;
-			SendMessage(hKey, EM_SETPASSWORDCHAR, show ? 0 : '*', 0);
+			int show = SendMessageW(hShowKey, BM_GETCHECK, 0, 0) == BST_CHECKED;
+			SendMessageW(hKey, EM_SETPASSWORDCHAR, show ? 0 : (WPARAM)L'*', 0);
 			InvalidateRect(hKey, NULL, TRUE);
 			break;
 		}
@@ -796,11 +833,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			OnRun();
 			break;
 		case ID_BTN_CLEAR:
-			SetWindowTextA(hLog, "");
+			SetWindowTextW(hLog, L"");
 			break;
 		case ID_BTN_OPEN: {
-			char path[MAX_PATH];
-			GetWindowTextA(ModoEmbutir() ? hImgOut : hMsgFile, path, sizeof(path));
+			wchar_t path[MAX_PATH];
+			GetWindowTextW(ModoEmbutir() ? hImgOut : hMsgFile, path, sizeof(path) / sizeof(path[0]));
 			OpenContainingFolder(path);
 			break;
 		}
@@ -809,14 +846,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			break;
 		case ID_BTN_COPY_LOG:
 			CopyLogToClipboard();
-			SetWindowTextA(hStatus, "ÒÑ¸´ÖÆÈÕÖ¾");
+			SetWindowTextW(hStatus, L"å·²å¤åˆ¶æ—¥å¿—");
 			break;
 		}
 		return 0;
 	}
 
 	case WM_LOG_APPEND:
-		AppendLog((const char *)lp);
+		AppendLog((const wchar_t *)lp);
 		free((void *)lp);
 		return 0;
 
@@ -825,37 +862,37 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		int embedding = (int)lp;
 		EnableWindow(GetDlgItem(hMain, ID_BTN_RUN), TRUE);
 		operationRunning = 0;
-		SendMessage(hProgress, PBM_SETMARQUEE, FALSE, 0);
+		SendMessageW(hProgress, PBM_SETMARQUEE, FALSE, 0);
 		if (result == 0) {
 			EnableWindow(hBtnOpen, TRUE);
-			char status[128];
-			snprintf(status, sizeof(status), "Íê³É | ÔØºÉ£º%llu ×Ö½Ú", lastPayloadBytes);
-			SetWindowTextA(hStatus, status);
+			wchar_t status[128];
+			swprintf(status, 128, L"å®Œæˆ | è½½è·ï¼š%llu å­—èŠ‚", lastPayloadBytes);
+			SetWindowTextW(hStatus, status);
 			AppendLogLine(embedding
-				? "[ok] ÏûÏ¢Òş²Ø³É¹¦¡£"
-				: "[ok] ÏûÏ¢ÌáÈ¡³É¹¦¡£");
-			MessageBoxA(hMain, embedding ? "ÏûÏ¢Òş²Ø³É¹¦£¡" :
-				"ÏûÏ¢ÌáÈ¡³É¹¦£¡", "OutGuess", MB_ICONINFORMATION);
+				? L"[ok] æ¶ˆæ¯éšè—æˆåŠŸã€‚"
+				: L"[ok] æ¶ˆæ¯æå–æˆåŠŸã€‚");
+			MessageBoxW(hMain, embedding ? L"æ¶ˆæ¯éšè—æˆåŠŸï¼" :
+				L"æ¶ˆæ¯æå–æˆåŠŸï¼", L"OutGuess", MB_ICONINFORMATION);
 		} else {
-			SetWindowTextA(hStatus, "²Ù×÷Ê§°Ü");
-			AppendLogLine("[Ê§°Ü] outguess.exe ·µ»Ø´íÎó£¬Çë²é¿´ÉÏ·½ÈÕÖ¾¡£");
-			MessageBoxA(hMain, "²Ù×÷Ê§°Ü£¬Çë²é¿´ÈÕÖ¾ÁË½âÏêÇé¡£",
-				"OutGuess", MB_ICONERROR);
+			SetWindowTextW(hStatus, L"æ“ä½œå¤±è´¥");
+			AppendLogLine(L"[å¤±è´¥] outguess.exe è¿”å›é”™è¯¯ï¼Œè¯·æŸ¥çœ‹ä¸Šæ–¹æ—¥å¿—ã€‚");
+			MessageBoxW(hMain, L"æ“ä½œå¤±è´¥ï¼Œè¯·æŸ¥çœ‹æ—¥å¿—äº†è§£è¯¦æƒ…ã€‚",
+				L"OutGuess", MB_ICONERROR);
 		}
 		return 0;
 	}
 
 	case WM_DROPFILES: {
 		HDROP drop = (HDROP)wp;
-		char path[MAX_PATH];
-		if (DragQueryFileA(drop, 0, path, sizeof(path))) {
-			const char *extension = strrchr(path, '.');
-			int isJpeg = extension && (_stricmp(extension, ".jpg") == 0 ||
-				_stricmp(extension, ".jpeg") == 0);
+		wchar_t path[MAX_PATH];
+		if (DragQueryFileW(drop, 0, path, sizeof(path) / sizeof(path[0]))) {
+			const wchar_t *extension = wcsrchr(path, L'.');
+			int isJpeg = extension && (_wcsicmp(extension, L".jpg") == 0 ||
+				_wcsicmp(extension, L".jpeg") == 0);
 			if (isJpeg || !ModoEmbutir())
-				SetWindowTextA(hImgIn, path);
+				SetWindowTextW(hImgIn, path);
 			else
-				SetWindowTextA(hMsgFile, path);
+				SetWindowTextW(hMsgFile, path);
 		}
 		DragFinish(drop);
 		return 0;
@@ -863,8 +900,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
 	case WM_CLOSE:
 		if (operationRunning) {
-			MessageBoxA(hwnd, "ÇëµÈ´ı²Ù×÷½áÊøºóÔÙ¹Ø±Õ´°¿Ú¡£",
-				"²Ù×÷½øĞĞÖĞ", MB_ICONINFORMATION);
+			MessageBoxW(hwnd, L"è¯·ç­‰å¾…æ“ä½œç»“æŸåå†å…³é—­çª—å£ã€‚",
+				L"æ“ä½œè¿›è¡Œä¸­", MB_ICONINFORMATION);
 			return 0;
 		}
 		DestroyWindow(hwnd);
@@ -874,7 +911,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		PostQuitMessage(0);
 		return 0;
 	}
-	return DefWindowProcA(hwnd, msg, wp, lp);
+	return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int nShow)
@@ -884,17 +921,17 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int nShow)
 	icc.dwICC = ICC_STANDARD_CLASSES | ICC_WIN95_CLASSES;
 	InitCommonControlsEx(&icc);
 
-	WNDCLASSA wc;
+	WNDCLASSW wc;
 	ZeroMemory(&wc, sizeof(wc));
 	wc.lpfnWndProc = WndProc;
 	wc.hInstance = hInst;
-	wc.lpszClassName = "OutGuessGuiWndClass";
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.lpszClassName = L"OutGuessGuiWndClass";
+	wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
 	wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
-	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	RegisterClassA(&wc);
+	wc.hIcon = LoadIconW(NULL, IDI_APPLICATION);
+	RegisterClassW(&wc);
 
-	hMain = CreateWindowA("OutGuessGuiWndClass", "OutGuess - JPEG ÒşĞ´¹¤¾ß",
+	hMain = CreateWindowW(L"OutGuessGuiWndClass", L"OutGuess - JPEG éšå†™å·¥å…·",
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
 		CW_USEDEFAULT, CW_USEDEFAULT, 620, 704,
 		NULL, NULL, hInst, NULL);
@@ -903,9 +940,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int nShow)
 	UpdateWindow(hMain);
 
 	MSG msg;
-	while (GetMessage(&msg, NULL, 0, 0)) {
+	while (GetMessageW(&msg, NULL, 0, 0)) {
 		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+		DispatchMessageW(&msg);
 	}
 	return 0;
 }
