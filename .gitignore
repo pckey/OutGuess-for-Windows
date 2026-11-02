@@ -1,0 +1,11 @@
+# 构建生成的文件（由 make / Makefile.mingw 产生）
+/jpeg-6b-steg/jconfig.h
+/jpeg-6b-steg/*.o
+/jpeg-6b-steg/libjpeg.a
+/jpeg-6b-steg/ckconfig
+/jpeg-6b-steg/cjpeg
+/jpeg-6b-steg/djpeg
+/jpeg-6b-steg/jpeg
+/jpeg-6b-steg/jpeg.exe
+/jpeg-6b-steg/*.exe
+/jpeg-6b-steg/testout*
