@@ -1,12 +1,11 @@
 /*
- * outguess-gui.c - interface grafica nativa Win32 para o OutGuess.
+ * outguess-gui.c - OutGuess 的原生 Win32 图形界面。
  *
- * Nao reimplementa nenhuma logica de esteganografia: apenas monta a
- * linha de comando e chama outguess.exe (que deve estar na mesma pasta
- * deste executavel), capturando a saida para exibir num log na tela.
+ * 不重新实现任何隐写逻辑：仅组装命令行并调用 outguess.exe
+ * （须与本程序位于同一目录），捕获其输出并显示在界面日志中。
  *
- * Compilado com MinGW-w64, estatico, sem dependencias externas alem
- * das DLLs que ja fazem parte de qualquer Windows (comctl32, comdlg32).
+ * 使用 MinGW-w64 编译，静态链接，除任何 Windows 都自带的
+ * DLL（comctl32、comdlg32）外无其他依赖。
  */
 #include <windows.h>
 #include <commctrl.h>
@@ -19,7 +18,7 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "comdlg32.lib")
 
-/* ---- IDs dos controles ---- */
+/* ---- 控件 ID ---- */
 #define ID_RADIO_EMBED   100
 #define ID_RADIO_EXTRACT 101
 #define ID_EDIT_IMGIN    110
@@ -121,7 +120,7 @@ typedef struct {
 	int embedding;
 } RunContext;
 
-/* Modo atual: 1 = embutir, 0 = extrair */
+/* 当前模式：1 = 隐藏，0 = 提取 */
 static int ModoEmbutir(void)
 {
 	return SendMessage(hRadioEmbed, BM_GETCHECK, 0, 0) == BST_CHECKED;
@@ -141,7 +140,7 @@ static void AppendLogLine(const char *txt)
 	AppendLog("\r\n");
 }
 
-/* Monta o caminho de outguess.exe: mesma pasta deste .exe */
+/* 构造 outguess.exe 路径：与本程序同一目录 */
 static void GetOutguessPath(char *buf, DWORD bufsize)
 {
 	char self[MAX_PATH];
@@ -183,8 +182,8 @@ static int BrowseSave(HWND owner, char *buf, DWORD bufsize, const char *filter, 
 	return GetSaveFileNameA(&ofn);
 }
 
-/* Roda outguess.exe com os argumentos dados, capturando stdout+stderr
- * e jogando no log. Retorna o exit code (ou -1 se falhou ao iniciar). */
+/* 用给定参数运行 outguess.exe，捕获 stdout+stderr 并写入日志。
+ * 返回退出码（启动失败返回 -1）。 */
 static int RunOutguess(const char *args)
 {
 	char exePath[MAX_PATH];
@@ -193,8 +192,8 @@ static int RunOutguess(const char *args)
 	if (GetFileAttributesA(exePath) == INVALID_FILE_ATTRIBUTES) {
 		char message[MAX_PATH + 128];
 		snprintf(message, sizeof(message),
-			"outguess.exe nao foi encontrado em:\r\n%s\r\n\r\n"
-			"Coloque outguess-gui.exe na mesma pasta que outguess.exe.",
+			"未找到 outguess.exe，路径为：\r\n%s\r\n\r\n"
+			"请将 outguess-gui.exe 与 outguess.exe 放在同一目录下。",
 			exePath);
 		QueueLogLine(message);
 		return -1;
@@ -210,7 +209,7 @@ static int RunOutguess(const char *args)
 
 	HANDLE hReadPipe, hWritePipe;
 	if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
-		QueueLogLine("[erro] falha ao criar pipe de saida");
+		QueueLogLine("[错误] 创建输出管道失败");
 		return -1;
 	}
 	SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
@@ -236,7 +235,7 @@ static int RunOutguess(const char *args)
 
 	if (!ok) {
 		CloseHandle(hReadPipe);
-		QueueLogLine("[erro] nao foi possivel iniciar outguess.exe");
+		QueueLogLine("[错误] 无法启动 outguess.exe");
 		return -1;
 	}
 
@@ -290,14 +289,14 @@ static int ValidateOutputPath(const char *input, const char *output)
 	char parent[MAX_PATH];
 	DWORD attributes;
 	if (_stricmp(input, output) == 0) {
-		MessageBoxA(hMain, "O arquivo de saida deve ser diferente do arquivo de entrada.",
-			"Destino invalido", MB_ICONWARNING);
+		MessageBoxA(hMain, "输出文件必须与输入文件不同。",
+			"目标无效", MB_ICONWARNING);
 		return 0;
 	}
 	attributes = GetFileAttributesA(output);
 	if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		MessageBoxA(hMain, "O destino indicado e uma pasta, nao um arquivo.",
-			"Destino invalido", MB_ICONWARNING);
+		MessageBoxA(hMain, "指定的目标是一个文件夹，不是文件。",
+			"目标无效", MB_ICONWARNING);
 		return 0;
 	}
 	strncpy(parent, output, sizeof(parent) - 1);
@@ -311,13 +310,13 @@ static int ValidateOutputPath(const char *input, const char *output)
 		strcpy(parent, ".");
 	attributes = GetFileAttributesA(parent);
 	if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-		MessageBoxA(hMain, "A pasta de destino nao existe.", "Destino invalido", MB_ICONWARNING);
+		MessageBoxA(hMain, "目标文件夹不存在。", "目标无效", MB_ICONWARNING);
 		return 0;
 	}
 	attributes = GetFileAttributesA(output);
 	if (attributes != INVALID_FILE_ATTRIBUTES) {
-		if (MessageBoxA(hMain, "O arquivo de destino ja existe. Deseja substitui-lo?",
-			"Confirmar substituicao", MB_YESNO | MB_ICONQUESTION) != IDYES)
+		if (MessageBoxA(hMain, "目标文件已存在，是否替换？",
+			"确认替换", MB_YESNO | MB_ICONQUESTION) != IDYES)
 			return 0;
 	}
 	return 1;
@@ -397,7 +396,7 @@ static void RunCapacity(void)
 	GetProcessPath(hImgIn, image, sizeof(image));
 	GetWindowTextA(hQuality, quality, sizeof(quality));
 	if (!image[0] || GetFileAttributesA(image) == INVALID_FILE_ATTRIBUTES) {
-		MessageBoxA(hMain, "Escolha uma imagem JPEG valida primeiro.", "Capacidade", MB_ICONWARNING);
+		MessageBoxA(hMain, "请先选择一张有效的 JPEG 图片。", "容量", MB_ICONWARNING);
 		return;
 	}
 	GetOutguessPath(tool, sizeof(tool));
@@ -409,7 +408,7 @@ static void RunCapacity(void)
 	snprintf(command, sizeof(command), "-e -p %s %s", quality, quotedImage);
 	char fullCommand[4096];
 	snprintf(fullCommand, sizeof(fullCommand), "\"%s\" %s", tool, command);
-	AppendLogLine("--- capacidade ---");
+	AppendLogLine("--- 容量 ---");
 	AppendLogLine(fullCommand);
 	STARTUPINFOA startup;
 	PROCESS_INFORMATION process;
@@ -422,7 +421,7 @@ static void RunCapacity(void)
 	security.nLength = sizeof(security);
 	security.bInheritHandle = TRUE;
 	if (!CreatePipe(&readPipe, &writePipe, &security, 0)) {
-		AppendLogLine("[erro] nao foi possivel capturar a capacidade.");
+		AppendLogLine("[错误] 无法获取容量。");
 		return;
 	}
 	SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
@@ -434,7 +433,7 @@ static void RunCapacity(void)
 		NULL, NULL, &startup, &process)) {
 		CloseHandle(readPipe);
 		CloseHandle(writePipe);
-		AppendLogLine("[erro] capacity.exe nao foi encontrado.");
+		AppendLogLine("[错误] 未找到 capacity.exe。");
 		return;
 	}
 	CloseHandle(writePipe);
@@ -460,28 +459,28 @@ static void OnRun(void)
 	GetWindowTextW(hMsgFile, messageText, sizeof(messageText) / sizeof(messageText[0]));
 	GetProcessPath(hImgOut, imgout, sizeof(imgout));
 	if (!GetUtf8ControlText(hKey, key, sizeof(key))) {
-		MessageBoxA(hMain, "Nao foi possivel ler a chave informada.", "Erro", MB_ICONERROR);
+		MessageBoxA(hMain, "无法读取输入的密钥。", "错误", MB_ICONERROR);
 		return;
 	}
 	GetWindowTextA(hQuality, quality, sizeof(quality));
 	GetWindowTextA(hIter, iterations, sizeof(iterations));
 
 	if (imgin[0] == '\0') {
-		MessageBoxA(hMain, "Escolha a imagem JPEG de entrada.", "Campo faltando", MB_ICONWARNING);
+		MessageBoxA(hMain, "请选择输入的 JPEG 图片。", "缺少字段", MB_ICONWARNING);
 		return;
 	}
 	if (GetFileAttributesA(imgin) == INVALID_FILE_ATTRIBUTES) {
-		MessageBoxA(hMain, "A imagem de entrada nao foi encontrada.", "Arquivo invalido", MB_ICONWARNING);
+		MessageBoxA(hMain, "未找到输入图片。", "文件无效", MB_ICONWARNING);
 		return;
 	}
 	int jpegQuality = atoi(quality);
 	int iterationLimit = atoi(iterations);
 	if (ModoEmbutir() && (jpegQuality < 75 || jpegQuality > 100)) {
-		MessageBoxA(hMain, "A qualidade JPEG deve estar entre 75 e 100.", "Valor invalido", MB_ICONWARNING);
+		MessageBoxA(hMain, "JPEG 质量必须在 75 到 100 之间。", "数值无效", MB_ICONWARNING);
 		return;
 	}
 	if (ModoEmbutir() && (iterationLimit < 0 || iterationLimit > 65535)) {
-		MessageBoxA(hMain, "O limite de iteracoes deve estar entre 0 e 65535.", "Valor invalido", MB_ICONWARNING);
+		MessageBoxA(hMain, "迭代次数限制必须在 0 到 65535 之间。", "数值无效", MB_ICONWARNING);
 		return;
 	}
 	int ecc = SendMessage(hEcc, BM_GETCHECK, 0, 0) == BST_CHECKED;
@@ -496,26 +495,26 @@ static void OnRun(void)
 
 	RunContext *context = (RunContext *)calloc(1, sizeof(RunContext));
 	if (!context) {
-		MessageBoxA(hMain, "Nao foi possivel iniciar a operacao.", "Erro", MB_ICONERROR);
+		MessageBoxA(hMain, "无法启动操作。", "错误", MB_ICONERROR);
 		return;
 	}
 	context->embedding = ModoEmbutir();
 
 	if (ModoEmbutir()) {
 		if (msgfile[0] == '\0') {
-			MessageBoxA(hMain, "Digite uma mensagem ou escolha um arquivo.", "Campo faltando", MB_ICONWARNING);
+			MessageBoxA(hMain, "请输入消息或选择文件。", "缺少字段", MB_ICONWARNING);
 			free(context);
 			return;
 		}
 		if (imgout[0] == '\0') {
-			MessageBoxA(hMain, "Escolha onde salvar a imagem de saida.", "Campo faltando", MB_ICONWARNING);
+			MessageBoxA(hMain, "请选择输出图片的保存位置。", "缺少字段", MB_ICONWARNING);
 			free(context);
 			return;
 		}
 		if (SendMessageA(hNoOverwrite, BM_GETCHECK, 0, 0) == BST_CHECKED &&
 			GetFileAttributesA(imgout) != INVALID_FILE_ATTRIBUTES) {
-			MessageBoxA(hMain, "O arquivo de saida ja existe e a opcao nao sobrescrever esta ativa.",
-				"Destino protegido", MB_ICONWARNING);
+			MessageBoxA(hMain, "输出文件已存在，且已开启不覆盖选项。",
+				"目标受保护", MB_ICONWARNING);
 			free(context);
 			return;
 		}
@@ -523,8 +522,8 @@ static void OnRun(void)
 			free(context);
 			return;
 		}
-		if (MessageBoxA(hMain, "Iniciar a insercao da mensagem na imagem?",
-			"Confirmar operacao", MB_YESNO | MB_ICONQUESTION) != IDYES) {
+		if (MessageBoxA(hMain, "开始将消息隐藏到图片中？",
+			"确认操作", MB_YESNO | MB_ICONQUESTION) != IDYES) {
 			free(context);
 			return;
 		}
@@ -534,7 +533,7 @@ static void OnRun(void)
 		    (messageAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
 			if (!CreateTempMessageFile(messageText, context->tempMessageFile,
 			    sizeof(context->tempMessageFile))) {
-				MessageBoxA(hMain, "Nao foi possivel preparar a mensagem.", "Erro", MB_ICONERROR);
+				MessageBoxA(hMain, "无法准备消息。", "错误", MB_ICONERROR);
 				free(context);
 				return;
 			}
@@ -552,14 +551,14 @@ static void OnRun(void)
 		}
 	} else {
 		if (msgfile[0] == '\0') {
-			MessageBoxA(hMain, "Escolha onde salvar a mensagem extraida.", "Campo faltando", MB_ICONWARNING);
+			MessageBoxA(hMain, "请选择提取消息的保存位置。", "缺少字段", MB_ICONWARNING);
 			free(context);
 			return;
 		}
 		if (SendMessageA(hNoOverwrite, BM_GETCHECK, 0, 0) == BST_CHECKED &&
 			GetFileAttributesA(msgfile) != INVALID_FILE_ATTRIBUTES) {
-			MessageBoxA(hMain, "O arquivo extraido ja existe e a opcao nao sobrescrever esta ativa.",
-				"Destino protegido", MB_ICONWARNING);
+			MessageBoxA(hMain, "提取的文件已存在，且已开启不覆盖选项。",
+				"目标受保护", MB_ICONWARNING);
 			free(context);
 			return;
 		}
@@ -567,8 +566,8 @@ static void OnRun(void)
 			free(context);
 			return;
 		}
-		if (MessageBoxA(hMain, "Iniciar a extracao da mensagem?",
-			"Confirmar operacao", MB_YESNO | MB_ICONQUESTION) != IDYES) {
+		if (MessageBoxA(hMain, "开始提取消息？",
+			"确认操作", MB_YESNO | MB_ICONQUESTION) != IDYES) {
 			free(context);
 			return;
 		}
@@ -599,16 +598,16 @@ static void OnRun(void)
 	}
 	char status[128];
 	if (context->embedding)
-		snprintf(status, sizeof(status), "Payload: %llu bytes | capacidade no log", lastPayloadBytes);
+		snprintf(status, sizeof(status), "Payload: %llu 字节 | 容量见日志", lastPayloadBytes);
 	else
-		strcpy(status, "Preparando extracao...");
+		strcpy(status, "准备提取中...");
 	SetWindowTextA(hStatus, status);
 
 	EnableWindow(GetDlgItem(hMain, ID_BTN_RUN), FALSE);
 	EnableWindow(hBtnOpen, FALSE);
 	operationRunning = 1;
 	SendMessage(hProgress, PBM_SETMARQUEE, TRUE, 30);
-	SetWindowTextA(hStatus, context->embedding ? "Embutindo mensagem..." : "Extraindo mensagem...");
+	SetWindowTextA(hStatus, context->embedding ? "正在隐藏消息..." : "正在提取消息...");
 	HANDLE thread = CreateThread(NULL, 0, RunThread, context, 0, NULL);
 	if (!thread) {
 		if (context->tempMessageFile[0] != '\0')
@@ -618,8 +617,8 @@ static void OnRun(void)
 		EnableWindow(GetDlgItem(hMain, ID_BTN_RUN), TRUE);
 		EnableWindow(hBtnOpen, TRUE);
 		operationRunning = 0;
-		SetWindowTextA(hStatus, "Pronto");
-		MessageBoxA(hMain, "Nao foi possivel iniciar a operacao.", "Erro", MB_ICONERROR);
+		SetWindowTextA(hStatus, "就绪");
+		MessageBoxA(hMain, "无法启动操作。", "错误", MB_ICONERROR);
 		return;
 	}
 	CloseHandle(thread);
@@ -628,7 +627,7 @@ static void OnRun(void)
 static void UpdateModeVisibility(void)
 {
 	int embutir = ModoEmbutir();
-	SetWindowTextA(hLblMsgFile, embutir ? "Mensagem ou arquivo a esconder:" : "Salvar mensagem extraida em:");
+	SetWindowTextA(hLblMsgFile, embutir ? "要隐藏的消息或文件：" : "提取消息的保存位置：");
 	ShowWindow(hLblImgOut, embutir ? SW_SHOW : SW_HIDE);
 	ShowWindow(hImgOut, embutir ? SW_SHOW : SW_HIDE);
 	ShowWindow(hBtnImgOut, embutir ? SW_SHOW : SW_HIDE);
@@ -651,98 +650,98 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			SendMessage(h_, WM_SETFONT, (WPARAM)hFont, TRUE); \
 		} while (0)
 
-		MKSTATIC("Modo:", 12, 14, 60, 20);
-		hRadioEmbed = CreateWindowA("BUTTON", "Embutir mensagem",
+		MKSTATIC("模式：", 12, 14, 60, 20);
+		hRadioEmbed = CreateWindowA("BUTTON", "隐藏消息",
 			WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON | WS_GROUP,
 			80, 12, 160, 20, hwnd, (HMENU)ID_RADIO_EMBED, NULL, NULL);
-		hRadioExtract = CreateWindowA("BUTTON", "Extrair mensagem",
+		hRadioExtract = CreateWindowA("BUTTON", "提取消息",
 			WS_CHILD | WS_VISIBLE | BS_AUTORADIOBUTTON,
 			250, 12, 160, 20, hwnd, (HMENU)ID_RADIO_EXTRACT, NULL, NULL);
 		SendMessage(hRadioEmbed, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessage(hRadioExtract, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessage(hRadioEmbed, BM_SETCHECK, BST_CHECKED, 0);
 
-		MKSTATIC("Imagem JPEG de entrada:", 12, 50, 200, 20);
+		MKSTATIC("输入 JPEG 图片：", 12, 50, 200, 20);
 		hImgIn = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
 			12, 72, 470, 24, hwnd, (HMENU)ID_EDIT_IMGIN, NULL, NULL);
-		hBtnImgIn = CreateWindowA("BUTTON", "Procurar...", WS_CHILD | WS_VISIBLE,
+		hBtnImgIn = CreateWindowA("BUTTON", "浏览...", WS_CHILD | WS_VISIBLE,
 			492, 72, 100, 24, hwnd, (HMENU)ID_BTN_IMGIN, NULL, NULL);
 		SendMessage(hImgIn, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hLblMsgFile = CreateWindowA("STATIC", "Mensagem ou arquivo a esconder:", WS_CHILD | WS_VISIBLE,
+		hLblMsgFile = CreateWindowA("STATIC", "要隐藏的消息或文件：", WS_CHILD | WS_VISIBLE,
 			12, 108, 400, 20, hwnd, (HMENU)ID_LBL_MSGFILE, NULL, NULL);
 		hMsgFile = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
 			12, 130, 470, 24, hwnd, (HMENU)ID_EDIT_MSGFILE, NULL, NULL);
-		hBtnMsgFile = CreateWindowA("BUTTON", "Procurar...", WS_CHILD | WS_VISIBLE,
+		hBtnMsgFile = CreateWindowA("BUTTON", "浏览...", WS_CHILD | WS_VISIBLE,
 			492, 130, 100, 24, hwnd, (HMENU)ID_BTN_MSGFILE, NULL, NULL);
 		SendMessage(hLblMsgFile, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessage(hMsgFile, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hLblImgOut = CreateWindowA("STATIC", "Imagem de saida (com a mensagem):", WS_CHILD | WS_VISIBLE,
+		hLblImgOut = CreateWindowA("STATIC", "输出图片（含消息）：", WS_CHILD | WS_VISIBLE,
 			12, 166, 300, 20, hwnd, (HMENU)ID_LBL_IMGOUT, NULL, NULL);
 		hImgOut = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_BORDER | CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL,
 			12, 188, 470, 24, hwnd, (HMENU)ID_EDIT_IMGOUT, NULL, NULL);
-		hBtnImgOut = CreateWindowA("BUTTON", "Procurar...", WS_CHILD | WS_VISIBLE,
+		hBtnImgOut = CreateWindowA("BUTTON", "浏览...", WS_CHILD | WS_VISIBLE,
 			492, 188, 100, 24, hwnd, (HMENU)ID_BTN_IMGOUT, NULL, NULL);
 		SendMessage(hLblImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessage(hImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hLblQuality = CreateWindowA("STATIC", "Qualidade JPEG (75-100):", WS_CHILD | WS_VISIBLE,
+		hLblQuality = CreateWindowA("STATIC", "JPEG 质量（75-100）：", WS_CHILD | WS_VISIBLE,
 			12, 224, 150, 20, hwnd, (HMENU)ID_LBL_QUALITY, NULL, NULL);
 		hQuality = CreateWindowA("EDIT", "75", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
 			165, 222, 60, 24, hwnd, (HMENU)ID_EDIT_QUALITY, NULL, NULL);
-		hLblIter = CreateWindowA("STATIC", "Limite de iteracoes:", WS_CHILD | WS_VISIBLE,
+		hLblIter = CreateWindowA("STATIC", "迭代次数限制：", WS_CHILD | WS_VISIBLE,
 			245, 224, 130, 20, hwnd, (HMENU)ID_LBL_ITER, NULL, NULL);
 		hIter = CreateWindowA("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
 			378, 222, 75, 24, hwnd, (HMENU)ID_EDIT_ITER, NULL, NULL);
 
-		MKSTATIC("Chave secreta (opcional):", 12, 260, 180, 20);
+		MKSTATIC("密钥（可选）：", 12, 260, 180, 20);
 		hKey = CreateWindowA("EDIT", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_PASSWORD | ES_AUTOHSCROLL,
 			12, 282, 300, 24, hwnd, (HMENU)ID_EDIT_KEY, NULL, NULL);
-		hShowKey = CreateWindowA("BUTTON", "Mostrar", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+		hShowKey = CreateWindowA("BUTTON", "显示", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 			322, 284, 90, 20, hwnd, (HMENU)ID_CHK_SHOWKEY, NULL, NULL);
 		SendMessage(hKey, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessage(hShowKey, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hEcc = CreateWindowA("BUTTON", "Usar correcao de erro (mais robusto)",
+		hEcc = CreateWindowA("BUTTON", "使用纠错（更稳健）",
 			WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 			12, 322, 320, 20, hwnd, (HMENU)ID_CHK_ECC, NULL, NULL);
 		SendMessage(hEcc, WM_SETFONT, (WPARAM)hFont, TRUE);
-		hNoOverwrite = CreateWindowA("BUTTON", "Nao sobrescrever arquivos existentes",
+		hNoOverwrite = CreateWindowA("BUTTON", "不覆盖已存在的文件",
 			WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 			12, 346, 300, 20, hwnd, (HMENU)ID_CHK_NO_OVERWRITE, NULL, NULL);
 		SendMessage(hNoOverwrite, BM_SETCHECK, BST_CHECKED, 0);
 		SendMessage(hNoOverwrite, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		CreateWindowA("BUTTON", "Limpar log", WS_CHILD | WS_VISIBLE,
+		CreateWindowA("BUTTON", "清空日志", WS_CHILD | WS_VISIBLE,
 			12, 376, 100, 32, hwnd, (HMENU)ID_BTN_CLEAR, NULL, NULL);
-		hBtnOpen = CreateWindowA("BUTTON", "Abrir pasta", WS_CHILD | WS_VISIBLE,
+		hBtnOpen = CreateWindowA("BUTTON", "打开文件夹", WS_CHILD | WS_VISIBLE,
 			125, 376, 110, 32, hwnd, (HMENU)ID_BTN_OPEN, NULL, NULL);
 		EnableWindow(hBtnOpen, FALSE);
-		hBtnCapacity = CreateWindowA("BUTTON", "Ver capacidade", WS_CHILD | WS_VISIBLE,
+		hBtnCapacity = CreateWindowA("BUTTON", "查看容量", WS_CHILD | WS_VISIBLE,
 			245, 376, 160, 32, hwnd, (HMENU)ID_BTN_CAPACITY, NULL, NULL);
-		hBtnCopyLog = CreateWindowA("BUTTON", "Copiar log", WS_CHILD | WS_VISIBLE,
+		hBtnCopyLog = CreateWindowA("BUTTON", "复制日志", WS_CHILD | WS_VISIBLE,
 			12, 414, 100, 28, hwnd, (HMENU)ID_BTN_COPY_LOG, NULL, NULL);
 		SendMessage(hBtnCapacity, WM_SETFONT, (WPARAM)hFont, TRUE);
 		SendMessage(hBtnCopyLog, WM_SETFONT, (WPARAM)hFont, TRUE);
-		CreateWindowA("BUTTON", "Executar", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+		CreateWindowA("BUTTON", "执行", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
 			420, 376, 172, 32, hwnd, (HMENU)ID_BTN_RUN, NULL, NULL);
 		SendMessage(GetDlgItem(hwnd, ID_BTN_RUN), WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		hStatus = CreateWindowA("STATIC", "Pronto", WS_CHILD | WS_VISIBLE,
+		hStatus = CreateWindowA("STATIC", "就绪", WS_CHILD | WS_VISIBLE,
 			125, 418, 280, 20, hwnd, (HMENU)ID_STATUS, NULL, NULL);
 		hProgress = CreateWindowA(PROGRESS_CLASSA, "", WS_CHILD | WS_VISIBLE | PBS_MARQUEE,
 			420, 414, 172, 16, hwnd, (HMENU)ID_PROGRESS, NULL, NULL);
 		SendMessage(hProgress, PBM_SETMARQUEE, FALSE, 0);
 
-		MKSTATIC("Log de execucao", 12, 454, 150, 20);
+		MKSTATIC("运行日志", 12, 454, 150, 20);
 		hLog = CreateWindowA("EDIT", "",
 			WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL |
 			ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
 			12, 478, 580, 180, hwnd, (HMENU)ID_EDIT_LOG, NULL, NULL);
 		SendMessage(hLog, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-		AppendLogLine("OutGuess GUI pronta. Escolha o modo, preencha os campos e clique Executar.");
+		AppendLogLine("OutGuess 图形界面已就绪。请选择模式、填写字段并点击执行按钮。");
 		UpdateModeVisibility();
 		DragAcceptFiles(hwnd, TRUE);
 		return 0;
@@ -760,8 +759,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		case ID_BTN_IMGIN: {
 			char buf[MAX_PATH] = "";
 			if (BrowseOpen(hwnd, buf, MAX_PATH,
-			    "Imagens JPEG\0*.jpg;*.jpeg\0Todos os arquivos\0*.*\0",
-			    "Escolha a imagem JPEG"))
+			    "JPEG 图片\0*.jpg;*.jpeg\0所有文件\0*.*\0",
+			    "选择 JPEG 图片"))
 				SetWindowTextA(hImgIn, buf);
 			break;
 		}
@@ -769,12 +768,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			char buf[MAX_PATH] = "";
 			if (ModoEmbutir()) {
 				if (BrowseOpen(hwnd, buf, MAX_PATH,
-				    "Todos os arquivos\0*.*\0", "Escolha o arquivo de mensagem"))
+				    "所有文件\0*.*\0", "选择消息文件"))
 					SetWindowTextA(hMsgFile, buf);
 			} else {
 				if (BrowseSave(hwnd, buf, MAX_PATH,
-				    "Arquivo de texto\0*.txt\0Todos os arquivos\0*.*\0",
-				    "Salvar mensagem extraida como", "txt"))
+				    "文本文件\0*.txt\0所有文件\0*.*\0",
+				    "将提取的消息保存为", "txt"))
 					SetWindowTextA(hMsgFile, buf);
 			}
 			break;
@@ -782,8 +781,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		case ID_BTN_IMGOUT: {
 			char buf[MAX_PATH] = "";
 			if (BrowseSave(hwnd, buf, MAX_PATH,
-			    "Imagem JPEG\0*.jpg\0Todos os arquivos\0*.*\0",
-			    "Salvar imagem de saida como", "jpg"))
+			    "JPEG 图片\0*.jpg\0所有文件\0*.*\0",
+			    "将输出图片保存为", "jpg"))
 				SetWindowTextA(hImgOut, buf);
 			break;
 		}
@@ -810,7 +809,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 			break;
 		case ID_BTN_COPY_LOG:
 			CopyLogToClipboard();
-			SetWindowTextA(hStatus, "Log copiado");
+			SetWindowTextA(hStatus, "已复制日志");
 			break;
 		}
 		return 0;
@@ -830,17 +829,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		if (result == 0) {
 			EnableWindow(hBtnOpen, TRUE);
 			char status[128];
-			snprintf(status, sizeof(status), "Concluido | payload: %llu bytes", lastPayloadBytes);
+			snprintf(status, sizeof(status), "完成 | 载荷：%llu 字节", lastPayloadBytes);
 			SetWindowTextA(hStatus, status);
 			AppendLogLine(embedding
-				? "[ok] mensagem embutida com sucesso."
-				: "[ok] mensagem extraida com sucesso.");
-			MessageBoxA(hMain, embedding ? "Mensagem embutida com sucesso!" :
-				"Mensagem extraida com sucesso!", "OutGuess", MB_ICONINFORMATION);
+				? "[ok] 消息隐藏成功。"
+				: "[ok] 消息提取成功。");
+			MessageBoxA(hMain, embedding ? "消息隐藏成功！" :
+				"消息提取成功！", "OutGuess", MB_ICONINFORMATION);
 		} else {
-			SetWindowTextA(hStatus, "Falha na operacao");
-			AppendLogLine("[falhou] outguess.exe retornou erro. Veja o log acima.");
-			MessageBoxA(hMain, "A operacao falhou. Veja o log para detalhes.",
+			SetWindowTextA(hStatus, "操作失败");
+			AppendLogLine("[失败] outguess.exe 返回错误，请查看上方日志。");
+			MessageBoxA(hMain, "操作失败，请查看日志了解详情。",
 				"OutGuess", MB_ICONERROR);
 		}
 		return 0;
@@ -864,8 +863,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
 	case WM_CLOSE:
 		if (operationRunning) {
-			MessageBoxA(hwnd, "Aguarde a operacao terminar antes de fechar a janela.",
-				"Operacao em andamento", MB_ICONINFORMATION);
+			MessageBoxA(hwnd, "请等待操作结束后再关闭窗口。",
+				"操作进行中", MB_ICONINFORMATION);
 			return 0;
 		}
 		DestroyWindow(hwnd);
@@ -895,7 +894,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int nShow)
 	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	RegisterClassA(&wc);
 
-	hMain = CreateWindowA("OutGuessGuiWndClass", "OutGuess - Esteganografia em JPEG",
+	hMain = CreateWindowA("OutGuessGuiWndClass", "OutGuess - JPEG 隐写工具",
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
 		CW_USEDEFAULT, CW_USEDEFAULT, 620, 704,
 		NULL, NULL, hInst, NULL);

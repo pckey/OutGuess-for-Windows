@@ -1,186 +1,196 @@
 # OutGuess for Windows
 
-Port do **OutGuess** para Windows 64-bit, com suporte a linha de comando e
-uma interface gráfica Win32 para os fluxos mais comuns de esteganografia.
+A port of **OutGuess** to Windows 64-bit, with command-line support and a
+native Win32 graphical interface for the most common steganography workflows.
 
-> **Uso responsável:** utilize somente em arquivos próprios ou com autorização.
-> Esteganografia não substitui criptografia; se o conteúdo for sensível,
-> proteja-o adequadamente antes de ocultá-lo.
+> **Responsible use:** only use it on files you own or are authorized to modify.
+> Steganography is not a substitute for encryption; if the content is sensitive,
+> protect it appropriately before hiding it.
 
 ## Download
 
-Baixe a versão mais recente na página de
-[Releases](https://github.com/joaosbguilherme-ui/OutGuess-for-Windows/releases).
+Download the latest release from the
+[Releases](https://github.com/pckey/OutGuess-for-Windows/releases) page.
 
-Veja as instruções completas para Windows em
+For complete Windows instructions, see
 [README-WINDOWS.md](README-WINDOWS.md).
 
-## Recursos
+## Features
 
-- Ocultação e extração de arquivos em imagens JPEG.
-- Suporte a imagens PNM e PPM conforme o OutGuess.
-- Chave secreta para codificação do payload.
-- Correção de erros Golay com a opção `-e`.
-- Preservação das estatísticas de frequência em JPEG.
-```
+- Hide and extract files inside JPEG images.
+- PNM and PPM image support, as in OutGuess.
+- Secret key for payload encoding.
+- Golay error correction with the `-e` option.
+- JPEG frequency-statistics preservation.
 
-A opção `-k` é opcional. Quando omitida, o OutGuess usa a chave padrão
-compatível com a versão original:
-
-```powershell
-.\outguess.exe -d ".\mensagem.txt" ".\imagem.jpg" ".\saida.jpg"
-- Executáveis Windows 64-bit.
-- Interface gráfica nativa Win32.
-- Build com MinGW-w64.
-- Compatibilidade da linha de comando com o uso tradicional do OutGuess.
-
-## Uso rápido
-
-Os binários prontos ficam em `bin-win64/`.
-
-### Ocultar um arquivo
+The `-k` option is optional. When omitted, OutGuess uses the default key
+compatible with the original version:
 
 ```powershell
-cd "C:\caminho\OutGuess-for-Windows\bin-win64"
-
-.\outguess.exe -k "minha-chave" -d ".\mensagem.txt" ".\imagem.jpg" ".\saida.jpg"
+.\outguess.exe -d ".\message.txt" ".\image.jpg" ".\output.jpg"
 ```
 
-### Extrair um arquivo
+- Windows 64-bit executables.
+- Native Win32 graphical interface.
+- Built with MinGW-w64.
+- Command-line compatible with traditional OutGuess usage.
+
+## Quick start
+
+Prebuilt binaries live in `bin-win64/`.
+
+### Hide a file
 
 ```powershell
-.\outguess.exe -k "minha-chave" -r ".\saida.jpg" ".\mensagem-recuperada.txt"
+cd "C:\path\OutGuess-for-Windows\bin-win64"
+
+.\outguess.exe -k "my-key" -d ".\message.txt" ".\image.jpg" ".\output.jpg"
 ```
 
-A chave utilizada na extração deve ser exatamente a mesma utilizada na
-inserção. Os arquivos de entrada e os diretórios de destino precisam existir.
+### Extract a file
 
-A chave e a opção de correção de erros. Se a chave ficar vazia,
-ela usa a chave padrão do OutGuess original.
+```powershell
+.\outguess.exe -k "my-key" -r ".\output.jpg" ".\recovered-message.txt"
+```
+
+The key used for extraction must be exactly the same as the one used for
+embedding. The input files and the destination directories must already exist.
+
+The key and the error-correction option: if the key is left empty, the default
+key of the original OutGuess is used.
 
 ```powershell
 .\outguess.exe -h
 ```
 
-## Interface gráfica
+## Graphical interface
 
-Após compilar, mantenha `outguess-gui.exe` e `outguess.exe` na mesma pasta.
+After building, keep `outguess-gui.exe` and `outguess.exe` in the same folder.
 
 ```powershell
 Start-Process ".\outguess-gui.exe"
 ```
 
-A GUI permite selecionar a imagem, o arquivo a ser ocultado, o destino, a
-chave e a opção de correção de erros.
+The GUI lets you select the image, the file to hide, the destination, the key,
+and the error-correction option.
 
-## Compilação
+## Building
 
-Para instruções completas de instalação, dependências, compilação e
-solução de problemas no Windows, consulte
-[README-WINDOWS.md](README-WINDOWS.md).
+For complete installation, dependency, build, and troubleshooting instructions
+on Windows, see [README-WINDOWS.md](README-WINDOWS.md).
 
-Resumo com MSYS2 MinGW64:
+Quick summary with MSYS2 MinGW64:
 
 ```bash
 pacman -Syu
 pacman -Su
 pacman -S --needed mingw-w64-x86_64-gcc make
 
-cd /c/caminho/OutGuess-for-Windows/src
+cd /c/path/OutGuess-for-Windows/src
 make -f Makefile.mingw
 ```
 
-O build gera os executáveis do projeto em `src/`, conforme a configuração
-atual do `Makefile.mingw`.
+The build produces the project's executables in `src/`, according to the
+current `Makefile.mingw` configuration.
 
 ## GitHub Actions
 
-O workflow em `.github/workflows/build-windows.yml` compila automaticamente
-os executáveis no Windows usando MSYS2 MinGW64 e gera `outguess-windows.zip`
-com os binários e a documentação.
+The workflow in `.github/workflows/build-windows.yml` automatically builds the
+executables on Windows using MSYS2 MinGW64 and produces `outguess-windows.zip`
+with the binaries and documentation.
 
-- Em cada push para `main` ou pull request, o ZIP fica disponível em **Actions > Artifacts**.
-- Para criar uma Release automática, envie uma tag de versão:
+- On every push to `main` or pull request, the ZIP is available under **Actions > Artifacts**.
+- To create an automatic Release, push a version tag:
 
 ```powershell
 git tag v1.0.2
 git push origin v1.0.2
 ```
 
-O workflow cria a Release e anexa o ZIP com `outguess.exe`, `outguess-gui.exe`,
-`histogram.exe`, `capacity.exe`, `metadata.exe` e `batch.exe`.
+The workflow creates the Release and attaches the ZIP containing `outguess.exe`,
+`outguess-gui.exe`, `histogram.exe`, `capacity.exe`, `metadata.exe` and `batch.exe`.
 
-## Estrutura
+## Structure
 
-| Caminho | Descrição |
+| Path | Description |
 | --- | --- |
-| `src/` | Código do OutGuess e arquivos de build |
-| `src/jpeg-6b-steg/` | Biblioteca JPEG 6b modificada |
-| `src/win32/` | Camada de compatibilidade Windows |
-| `bin-win64/` | Binários e código-fonte da GUI |
-| `tests/` | Scripts e arquivos de teste |
-| `README-WINDOWS.md` | Guia detalhado para Windows |
-| `man/outguess.txt` | Referência da linha de comando |
+| `src/` | OutGuess source code and build files |
+| `src/jpeg-6b-steg/` | Modified JPEG 6b library |
+| `src/win32/` | Windows compatibility layer |
+| `bin-win64/` | Binaries and GUI source code |
+| `tests/` | Test scripts and files |
+| `README-WINDOWS.md` | Detailed Windows guide |
+| `man/outguess.txt` | Command-line reference |
 
-## Testes
+## Tests
 
-Os testes de integração usam o ambiente de build do projeto:
+The integration tests use the project's build environment:
 
 ```bash
 make check
 ```
 
-Para uma verificação básica de round-trip, o arquivo ocultado deve ser
-recuperado sem alteração após `embed` e `extract`.
+For a basic round-trip check, the hidden file should be recovered unchanged
+after `embed` and `extract`.
 
-## Ferramentas auxiliares
+## Auxiliary tools
 
-O build Windows também gera utilitários para análise e processamento em lote:
+The Windows build also produces utilities for analysis and batch processing:
 
 ```text
-capacity.exe -e -p 85 imagem.jpg
-metadata.exe imagem.jpg
-batch.exe embed -e -p 85 -k "senha" -m .\mensagem.txt -i ".\imagens\*.jpg" -o .\output
-batch.exe extract -e -k "senha" -i ".\output\*.jpg" -o .\extraidas
+capacity.exe -e -p 85 image.jpg
+metadata.exe image.jpg
+batch.exe embed -e -p 85 -k "password" -m .\message.txt -i ".\images\*.jpg" -o .\output
+batch.exe extract -e -k "password" -i ".\output\*.jpg" -o .\extracted
 ```
 
-`capacity.exe` estima os bits utilizáveis e a capacidade com correção de erros
-sem modificar a imagem. `metadata.exe` mostra dimensões, componentes, espaço
-de cor e marcadores JFIF, EXIF, IPTC e XMP. `batch.exe` processa arquivos
-encontrados por curingas e exibe o total de sucessos e falhas. No batch, `-e`
-ativa correção de erros, `-p` define a qualidade JPEG e `-f` permite substituir
-arquivos existentes; sem `-f`, saídas existentes são ignoradas.
+`capacity.exe` estimates the usable bits and the capacity with error correction
+without modifying the image. `metadata.exe` shows dimensions, components, color
+space and JFIF, EXIF, IPTC and XMP markers. `batch.exe` processes files matched
+by wildcards and reports the total of successes and failures. In batch mode,
+`-e` enables error correction, `-p` sets the JPEG quality and `-f` allows
+overwriting existing files; without `-f`, existing outputs are skipped.
 
-## Compatibilidade e portabilidade
+## Compatibility and portability
 
-A adaptação Windows concentra as mudanças específicas do sistema em
-`src/win32/` e mantém o código principal do OutGuess separado da camada de
-compatibilidade.
+The Windows adaptation concentrates system-specific changes in `src/win32/` and
+keeps the main OutGuess logic separate from the compatibility layer.
 
-Consulte [README-WINDOWS.md](README-WINDOWS.md) para detalhes técnicos sobre
-`getopt()`, byte order, tipos BSD, modo binário de arquivos e configuração
-da biblioteca JPEG.
+See [README-WINDOWS.md](README-WINDOWS.md) for technical details about
+`getopt()`, byte order, BSD types, binary file mode and JPEG library
+configuration.
 
-## 🤖 Powered by AI / Desenvolvimento Assistido por IA
+## Powered by AI / AI-assisted development
 
-Este projeto é um exemplo prático de como a Inteligência Artificial pode ser utilizada para acelerar a modernização, portabilidade e engenharia reversa de software legado. 
+This project is a practical example of how Artificial Intelligence can be used to
+accelerate the modernization, portability and reverse engineering of legacy
+software.
 
-Para trazer o **OutGuess** original (historicamente dependente do ecossistema Unix) nativamente para o ecossistema moderno do Windows 11, o desenvolvimento contou com o auxílio de IA nas seguintes frentes:
+To bring the original **OutGuess** (historically dependent on the Unix
+ecosystem) natively to the modern Windows 11 ecosystem, the development was
+assisted by AI in the following areas:
 
-* **Tradução e Refatoração de Código:** Adaptação de chamadas de sistema exclusivas do padrão POSIX para equivalentes nativas da API do Windows (`Win32`/`MSVC`).
-* **Resolução de Dependências Legadas:** Conversão automatizada de arquivos de build legados (como *Makefiles* clássicos) para estruturas modernas de compilação compatíveis com o ambiente Windows.
-* **Validação e Casos de Teste:** Geração de scripts automatizados baseados em padrões de esteganografia conhecidos para garantir que o comportamento criptográfico da portagem nativa seja 100% idêntico ao original do Linux.
+* **Code translation and refactoring:** adapting POSIX-specific system calls to
+  native Windows API equivalents (`Win32`/`MSVC`).
+* **Legacy dependency resolution:** automated conversion of legacy build files
+  (such as classic *Makefiles*) into modern build structures compatible with the
+  Windows environment.
+* **Validation and test cases:** generation of automated scripts based on known
+  steganography patterns to ensure that the cryptographic behavior of the native
+  port is 100% identical to the original on Linux.
 
-A utilização de IA permitiu reduzir drasticamente o tempo necessário para analisar o comportamento do código original de 1999/2001, contornar conflitos de ponteiros e gerenciar a manipulação de arquivos binários no Windows de forma segura e performática.
+The use of AI drastically reduced the time needed to analyze the behavior of the
+original 1999/2001 code, work around pointer conflicts and safely and
+efficiently handle binary file manipulation on Windows.
 
-## Licença e créditos
+## License and credits
 
-O projeto utiliza licença BSD. Consulte [LICENSE](LICENSE) e os cabeçalhos
-dos arquivos-fonte.
+The project is under the BSD license. See [LICENSE](LICENSE) and the source-file
+headers.
 
-O OutGuess foi originalmente desenvolvido por **Niels Provos** e é mantido
-pela comunidade [Resurrecting Open Source Projects](https://github.com/resurrecting-open-source-projects/outguess).
+OutGuess was originally developed by **Niels Provos** and is maintained by the
+[Resurrecting Open Source Projects](https://github.com/resurrecting-open-source-projects/outguess)
+community.
 
-O projeto também incorpora componentes relacionados a JPEG 6b, Arc4, MD5 e
-correção de erros Golay. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para
-informações sobre contribuição.
+The project also incorporates JPEG 6b, Arc4, MD5 and Golay error-correction
+components. See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution information.

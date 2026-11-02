@@ -41,7 +41,7 @@ histogram.exe: $(HISTOGRAM_SRCS)
 	windres ../bin-win64/outguess-gui.rc -O coff -o ../bin-win64/outguess-gui.res
 
 outguess-gui.exe: ../bin-win64/outguess-gui.c ../bin-win64/outguess-gui.res outguess.exe
-	$(CC) $(CFLAGS) -static -mwindows ../bin-win64/outguess-gui.c \
+	$(CC) $(CFLAGS) -static -mwindows -finput-charset=GBK -fexec-charset=GBK ../bin-win64/outguess-gui.c \
 		../bin-win64/outguess-gui.res -o outguess-gui.exe -lcomctl32 -lcomdlg32
 
 capacity.exe: tools/capacity.c $(OUTGUESS_SRCS)

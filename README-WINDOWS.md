@@ -1,46 +1,46 @@
-# OutGuess — build nativo para Windows 11
+# OutGuess — native build for Windows 11
 
-Este projeto adapta o código-fonte do **OutGuess** para compilação e execução
-nativas em Windows 11 (x86-64), sem exigir WSL, Cygwin ou o runtime do MSYS2
-na máquina que executará os binários.
+This project adapts the **OutGuess** source code for native compilation and
+execution on Windows 11 (x86-64), without requiring WSL, Cygwin or the MSYS2
+runtime on the machine that runs the binaries.
 
-> **Importante:** o ambiente MSYS2 é usado para compilar, não é requisito para
-> executar os binários distribuídos quando eles estiverem devidamente
-> linkados conforme o build do projeto.
+> **Important:** the MSYS2 environment is used to build, but it is not a
+> requirement to run the distributed binaries once they are linked as the
+> project's build does.
 
-## Objetivo da adaptação
+## Goal of the adaptation
 
-A camada de portabilidade foi mantida separada da lógica principal. A intenção
-é preservar o comportamento do OutGuess e alterar somente o necessário para
-o ambiente Windows.
+The portability layer is kept separate from the main logic. The intent is to
+preserve OutGuess's behavior and change only what is necessary for the Windows
+environment.
 
-Entre os pontos de compatibilidade estão:
+Among the compatibility points are:
 
-| Área | Ambiente Unix/BSD | Adaptação Windows |
+| Area | Unix/BSD environment | Windows adaptation |
 | --- | --- | --- |
-| Leitura de arquivo | `mmap()` quando disponível | Fallback baseado em `read()` quando `HAVE_MMAP` não está definido |
-| Argumentos | `getopt()` de `<unistd.h>` | Implementação compatível em `src/win32/getopt.c` |
-| Byte order | `htonl()` / `ntohl()` | Implementação em `src/win32/compat.h` |
-| Tipos BSD | Tipos de `<sys/types.h>` | Definições compatíveis baseadas em `<stdint.h>` |
-| Arquivos binários | APIs Unix | Uso de `O_BINARY` para evitar tradução de dados pelo CRT |
-| `strcasecmp()` | glibc/BSD | Mapeamento para `_stricmp()` no MSVCRT |
-| JPEG | Configuração Unix | Configuração Windows da biblioteca JPEG |
+| File reading | `mmap()` when available | `read()`-based fallback when `HAVE_MMAP` is undefined |
+| Arguments | `getopt()` from `<unistd.h>` | Compatible implementation in `src/win32/getopt.c` |
+| Byte order | `htonl()` / `ntohl()` | Implementation in `src/win32/compat.h` |
+| BSD types | Types from `<sys/types.h>` | Compatible definitions based on `<stdint.h>` |
+| Binary files | Unix APIs | Use of `O_BINARY` to avoid CRT data translation |
+| `strcasecmp()` | glibc/BSD | Mapping to `_stricmp()` in MSVCRT |
+| JPEG | Unix configuration | Windows configuration of the JPEG library |
 
-A adaptação específica está concentrada principalmente em:
+The specific adaptation is concentrated mainly in:
 
 - `src/win32/compat.h`
 - `src/win32/getopt.c`
 - `src/config.h`
 
-## Binários prontos
+## Prebuilt binaries
 
-Os binários distribuídos ficam em `bin-win64/`.
+The distributed binaries live in `bin-win64/`.
 
-Quando a release fornecer executáveis prontos, o usuário final poderá
-simplesmente baixar o pacote da página de Releases e executar os binários
-compatíveis, sem instalar o ambiente de desenvolvimento.
+When a release provides prebuilt executables, the end user can simply download
+the package from the Releases page and run the compatible binaries without
+installing a development environment.
 
-O executável da GUI precisa permanecer na mesma pasta que `outguess.exe`:
+The GUI executable must stay in the same folder as `outguess.exe`:
 
 ```text
 bin-win64/
@@ -48,41 +48,41 @@ bin-win64/
 └── outguess-gui.exe
 ```
 
-> A disponibilidade e o conteúdo dos binários dependem da release publicada.
-> Consulte o arquivo da release correspondente antes de distribuir ou
-> automatizar o download.
+> The availability and contents of the binaries depend on the published
+> release. Check the corresponding release notes before distributing or
+> automating a download.
 
-## Requisitos para compilação
+## Build requirements
 
 ### Windows + MSYS2
 
-1. Instale o [MSYS2](https://www.msys2.org/).
-2. Abra **MSYS2 MinGW 64-bit**.
-3. Atualize o ambiente:
+1. Install [MSYS2](https://www.msys2.org/).
+2. Open **MSYS2 MinGW 64-bit**.
+3. Update the environment:
 
 ```bash
 pacman -Syu
 ```
 
-Se o MSYS2 solicitar o fechamento do terminal, feche-o, abra novamente
-**MSYS2 MinGW 64-bit** e continue:
+If MSYS2 asks to close the terminal, close it, reopen **MSYS2 MinGW 64-bit**
+and continue:
 
 ```bash
 pacman -Su
 pacman -S --needed mingw-w64-x86_64-gcc make
 ```
 
-### Compilar
+### Build
 
-A partir da raiz do projeto:
+From the project root:
 
 ```bash
-cd /c/caminho/OutGuess-for-Windows/src
+cd /c/path/OutGuess-for-Windows/src
 make -f Makefile.mingw
 ```
 
-Os artefatos gerados dependem das regras presentes no
-`Makefile.mingw`. Na configuração documentada do projeto, são gerados:
+The generated artifacts depend on the rules in `Makefile.mingw`. In the
+documented project configuration, the following are produced:
 
 - `outguess.exe`
 - `histogram.exe`
@@ -91,98 +91,98 @@ Os artefatos gerados dependem das regras presentes no
 - `metadata.exe`
 - `batch.exe`
 
-## Executar a GUI
+## Run the GUI
 
-No PowerShell, entre no diretório onde os executáveis foram gerados:
+In PowerShell, go to the directory where the executables were generated:
 
 ```powershell
-cd "C:\caminho\OutGuess-for-Windows\src"
+cd "C:\path\OutGuess-for-Windows\src"
 Start-Process ".\outguess-gui.exe"
 ```
 
-Mantenha `outguess.exe` no mesmo diretório da GUI. A chave secreta é opcional;
-quando o campo fica vazio, a GUI omite `-k` e o executável usa `Default key`,
-como no OutGuess original.
+Keep `outguess.exe` in the same directory as the GUI. The secret key is
+optional; when the field is left empty, the GUI omits `-k` and the executable
+uses the `Default key`, as in the original OutGuess.
 
-### Ferramentas de análise e lote
+### Analysis and batch tools
 
-Verifique a capacidade de uma imagem sem gerar uma saída:
-
-```powershell
-.\capacity.exe -e -p 85 .\imagem.jpg
-```
-
-Inspecione dimensões, componentes e marcadores JPEG:
+Check an image's capacity without producing output:
 
 ```powershell
-.\metadata.exe .\imagem.jpg
+.\capacity.exe -e -p 85 .\image.jpg
 ```
 
-Processe várias imagens usando curingas do Windows:
+Inspect dimensions, components and JPEG markers:
 
 ```powershell
-.\batch.exe embed -e -p 85 -k "senha" -m .\mensagem.txt -i ".\imagens\*.jpg" -o .\output
-.\batch.exe extract -e -k "senha" -i ".\output\*.jpg" -o .\extraidas
+.\metadata.exe .\image.jpg
 ```
 
-O `batch.exe` cria o diretório de saída quando necessário e exibe a quantidade
-de arquivos processados, sucessos e falhas. A opção `-k` também é opcional;
-sem ela, usa a chave padrão do OutGuess. A opção `-f` permite sobrescrever
-saídas existentes; sem `-f`, esses arquivos são ignorados.
-
-A GUI oferece os seguintes recursos:
-
-- Texto digitado diretamente ou arquivo de mensagem selecionado.
-- Arrastar e soltar uma imagem ou arquivo na janela.
-- Histórico dos últimos caminhos usados nos campos de arquivo.
-- Botão para consultar a capacidade da imagem antes do embed.
-- Botão para copiar o log para a área de transferência.
-- Qualidade JPEG entre 75 e 100.
-- Limite de iterações entre 0 e 65535.
-- Barra de progresso e status durante operações longas.
-- Botão para limpar o log e abrir a pasta do resultado.
-- Proteção contra sobrescrita ativada por padrão e confirmação antes da operação.
-- Suporte a DPI alto por manifesto Windows.
-
-As opções de qualidade e iterações são convertidas para os parâmetros
-tradicionais `-p` e `-i` do OutGuess. A capacidade efetiva da imagem continua
-sendo calculada pelo executável e aparece no log, pois depende do conteúdo
-JPEG e das estatísticas da imagem.
-
-## Uso pela linha de comando
-
-O fluxo básico permanece compatível com a sintaxe tradicional do OutGuess.
-
-### Inserção
+Process several images using Windows wildcards:
 
 ```powershell
-.\outguess.exe -k "minha-chave" -d ".\mensagem.txt" ".\imagem.jpg" ".\saida.jpg"
+.\batch.exe embed -e -p 85 -k "password" -m .\message.txt -i ".\images\*.jpg" -o .\output
+.\batch.exe extract -e -k "password" -i ".\output\*.jpg" -o .\extracted
 ```
 
-### Extração
+`batch.exe` creates the output directory when needed and reports the number of
+processed files, successes and failures. The `-k` option is also optional;
+without it, the OutGuess default key is used. The `-f` option allows
+overwriting existing outputs; without `-f`, those files are skipped.
+
+The GUI offers the following features:
+
+- Type a message directly or select a message file.
+- Drag and drop an image or file onto the window.
+- History of the last used paths in the file fields.
+- Button to query an image's capacity before embedding.
+- Button to copy the log to the clipboard.
+- JPEG quality between 75 and 100.
+- Iteration limit between 0 and 65535.
+- Progress bar and status during long operations.
+- Buttons to clear the log and open the result folder.
+- Overwrite protection enabled by default, with confirmation before the operation.
+- High-DPI support via the Windows manifest.
+
+The quality and iteration options are converted to the traditional OutGuess
+parameters `-p` and `-i`. The effective capacity of the image is still computed
+by the executable and shown in the log, since it depends on the JPEG content
+and the image statistics.
+
+## Command-line usage
+
+The basic flow remains compatible with the traditional OutGuess syntax.
+
+### Embed
 
 ```powershell
-.\outguess.exe -k "minha-chave" -r ".\saida.jpg" ".\mensagem-recuperada.txt"
+.\outguess.exe -k "my-key" -d ".\message.txt" ".\image.jpg" ".\output.jpg"
 ```
 
-### Ajuda
+### Extract
+
+```powershell
+.\outguess.exe -k "my-key" -r ".\output.jpg" ".\recovered-message.txt"
+```
+
+### Help
 
 ```powershell
 .\outguess.exe -h
 ```
 
-Para a referência completa das opções, consulte
+For the complete option reference, see
 [`man/outguess.txt`](man/outguess.txt).
 
-## Cross-compilação
+## Cross-compilation
 
-Em Debian/Ubuntu, instale o toolchain:
+On Debian/Ubuntu, install the toolchain:
 
 ```bash
 sudo apt install mingw-w64 make
 ```
 
-Depois:
+Then:
 
 ```bash
 cd src
@@ -190,39 +190,38 @@ cd src
 make -f Makefile.mingw   CC=x86_64-w64-mingw32-gcc   AR=x86_64-w64-mingw32-ar   RANLIB=x86_64-w64-mingw32-ranlib
 ```
 
-O resultado depende das regras do `Makefile.mingw`.
+The result depends on the rules in `Makefile.mingw`.
 
-## Testes
+## Tests
 
-Os testes de integração podem ser executados no ambiente POSIX:
+The integration tests can be run in the POSIX environment:
 
 ```bash
 make check
 ```
 
-Um teste importante para validar o fluxo de esteganografia é o
-**round-trip**:
+An important test to validate the steganography flow is the **round-trip**:
 
 ```text
-arquivo original
+original file
       ↓
     embed
       ↓
-   imagem
+   image
       ↓
    extract
       ↓
-arquivo recuperado
+recovered file
 ```
 
-O arquivo recuperado deve ser comparado byte a byte com o original.
+The recovered file should be compared byte by byte with the original.
 
-## Solução de problemas
+## Troubleshooting
 
 ### `make: command not found`
 
-Você provavelmente está no terminal MSYS2 errado. Abra
-**MSYS2 MinGW 64-bit** e instale:
+You are probably in the wrong MSYS2 terminal. Open **MSYS2 MinGW 64-bit** and
+install:
 
 ```bash
 pacman -S --needed mingw-w64-x86_64-gcc make
@@ -230,31 +229,30 @@ pacman -S --needed mingw-w64-x86_64-gcc make
 
 ### `gcc: command not found`
 
-Verifique se o pacote MinGW-w64 foi instalado e se o terminal utilizado é
-**MSYS2 MinGW 64-bit**, não o terminal MSYS comum.
+Check that the MinGW-w64 package was installed and that the terminal used is
+**MSYS2 MinGW 64-bit**, not the common MSYS terminal.
 
-### A GUI não inicia
+### The GUI does not start
 
-Confirme que os dois executáveis estão juntos:
+Confirm that the two executables are together:
 
 ```text
 outguess.exe
 outguess-gui.exe
 ```
 
-Também tente executar diretamente no PowerShell:
+Also try running it directly in PowerShell:
 
 ```powershell
 .\outguess-gui.exe
 ```
 
-### A imagem JPEG apresenta comportamento inesperado
+### The JPEG image behaves unexpectedly
 
-Não abra/salve novamente a imagem em um editor que recomprima o JPEG entre
-a inserção e a extração. Preserve o arquivo de saída produzido pelo
-OutGuess.
+Do not open/re-save the image in an editor that recompresses the JPEG between
+embedding and extraction. Preserve the output file produced by OutGuess.
 
-## Estrutura relevante
+## Relevant structure
 
 ```text
 OutGuess-for-Windows/
@@ -270,9 +268,8 @@ OutGuess-for-Windows/
 └── CONTRIBUTING.md
 ```
 
-## Licença
+## License
 
-BSD, conforme o projeto original. Consulte `LICENSE` e os cabeçalhos dos
-arquivos-fonte.
-O OutGuess original foi desenvolvido por Niels Provos e posteriormente
-mantido pela comunidade de código aberto.
+BSD, as in the original project. See `LICENSE` and the source-file headers.
+The original OutGuess was developed by Niels Provos and later maintained by the
+open-source community.

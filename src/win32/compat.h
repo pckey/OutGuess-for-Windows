@@ -1,20 +1,20 @@
 /*
- * compat.h - camada de compatibilidade para portar o OutGuess (originalmente
- * escrito para Unix/BSD) para Windows nativo, compilado com MinGW-w64.
+ * compat.h - Windows 兼容层，用于将 OutGuess（原本为 Unix/BSD 编写）
+ * 移植到原生 Windows，使用 MinGW-w64 编译。
  *
- * Este arquivo soh eh incluido quando _WIN32 esta definido; em Linux/macOS
- * o build continua usando exatamente os cabecalhos POSIX originais.
+ * 仅当定义 _WIN32 时才包含本文件；在 Linux/macOS 上，
+ * 构建仍使用原版 POSIX 头文件。
  *
- * Substitui, para o alvo Windows:
- *   - <unistd.h> / getopt()      -> implementacao propria de getopt()
- *   - <netinet/in.h> htonl/ntohl -> macros de byte-swap sem depender de
- *                                    winsock (evita precisar de -lws2_32)
- *   - <sys/mman.h>               -> nao usado (HAVE_MMAP fica indefinido,
- *                                    o proprio outguess.c cai no fallback
- *                                    via read())
- *   - u_char/u_int/u_short       -> tipos BSD que o MSVCRT nao define
- *   - O_BINARY                   -> necessario para abrir JPEG/PNM sem
- *                                    tradução de CRLF
+ * 针对 Windows 目标进行的替换：
+ *   - <unistd.h> / getopt()      -> 自带的 getopt() 实现
+ *   - <netinet/in.h> htonl/ntohl -> 不依赖 winsock 的字节序交换宏
+ *                                    （避免需要 -lws2_32）
+ *   - <sys/mman.h>               -> 未使用（HAVE_MMAP 保持未定义，
+ *                                    outguess.c 自身会回退到
+ *                                    基于 read() 的实现）
+ *   - u_char/u_int/u_short       -> MSVCRT 未定义的 BSD 类型
+ *   - O_BINARY                   -> 以二进制方式打开 JPEG/PNM，
+ *                                    避免 CRT 的 CRLF 转换
  */
 #ifndef OUTGUESS_WIN32_COMPAT_H
 #define OUTGUESS_WIN32_COMPAT_H
@@ -24,20 +24,20 @@
 #include <io.h>
 #include <string.h>
 
-/* ---- Tipos estilo BSD usados por todo o codigo original ---- */
+/* ---- 原代码全局使用的 BSD 风格类型 ---- */
 typedef unsigned char  u_char;
 typedef unsigned short u_short;
 typedef unsigned int   u_int;
 typedef unsigned long  u_long;
 
-/* ---- u_intNN_t (sys/types.h do BSD/glibc, ausentes no MSVCRT) ---- */
+/* ---- u_intNN_t（BSD/glibc 的 sys/types.h 中定义，MSVCRT 缺失）---- */
 #include <stdint.h>
 typedef uint8_t  u_int8_t;
 typedef uint16_t u_int16_t;
 typedef uint32_t u_int32_t;
 typedef uint64_t u_int64_t;
 
-/* ---- strcasecmp / strncasecmp (o MSVCRT so tem os prefixados com _) ---- */
+/* ---- strcasecmp / strncasecmp（MSVCRT 仅提供带下划线前缀的版本）---- */
 #ifndef strcasecmp
 #define strcasecmp  _stricmp
 #endif
@@ -45,7 +45,7 @@ typedef uint64_t u_int64_t;
 #define strncasecmp _strnicmp
 #endif
 
-/* ---- htonl/ntohl sem precisar linkar Winsock ---- */
+/* ---- htonl/ntohl，无需链接 Winsock ---- */
 #ifndef htonl
 static __inline unsigned long outguess_htonl(unsigned long x)
 {
@@ -58,12 +58,12 @@ static __inline unsigned long outguess_htonl(unsigned long x)
 #define ntohl(x) outguess_htonl(x)
 #endif
 
-/* ---- abertura de arquivo binaria: evita traducao de CRLF do CRT ---- */
+/* ---- 二进制方式打开文件：避免 CRT 进行 CRLF 转换 ---- */
 #ifndef O_BINARY
 #define O_BINARY _O_BINARY
 #endif
 
-/* ---- getopt() minimalista (MinGW-w64 nao inclui getopt por padrao) ---- */
+/* ---- 极简 getopt() 实现（MinGW-w64 默认不包含 getopt）---- */
 extern char *optarg;
 extern int   optind, opterr, optopt;
 int outguess_getopt(int argc, char * const argv[], const char *optstring);

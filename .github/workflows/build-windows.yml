@@ -46,7 +46,7 @@ jobs:
           $package = Join-Path $staging 'bin-win64'
           New-Item -ItemType Directory -Force -Path $package | Out-Null
           Copy-Item 'src/outguess.exe', 'src/outguess-gui.exe', 'src/histogram.exe', 'src/capacity.exe', 'src/metadata.exe', 'src/batch.exe' $package
-          Copy-Item 'README.md', 'README-WINDOWS.md', 'LICENSE' $staging
+          Copy-Item 'README.md', 'README-WINDOWS.md', 'README.zh-CN.md', 'README-WINDOWS.zh-CN.md', 'LICENSE' $staging
           $zip = Join-Path $env:GITHUB_WORKSPACE 'outguess-windows.zip'
           Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip -Force
 
