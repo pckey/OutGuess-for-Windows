@@ -65,7 +65,20 @@ key of the original OutGuess is used.
 
 ## Graphical interface
 
-After building, keep `outguess-gui.exe` and `outguess.exe` in the same folder.
+The build produces **two** GUI executables that share identical logic; only the
+interface language differs:
+
+- `outguess-gui.exe` — Simplified Chinese interface.
+- `outguess-gui-en.exe` — English interface (pure ASCII source, so it renders
+  correctly on every Windows locale with zero font / code-page risk).
+
+Both use the Unicode (W) Win32 APIs, so even the English build still handles
+Chinese or other non-ASCII file paths and keys correctly on any language
+edition of Windows. Pick whichever language you prefer; both must sit next to
+`outguess.exe`.
+
+After building, keep `outguess-gui.exe` (or `outguess-gui-en.exe`) and
+`outguess.exe` in the same folder.
 
 ```powershell
 Start-Process ".\outguess-gui.exe"

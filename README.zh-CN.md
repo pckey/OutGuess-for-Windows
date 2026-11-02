@@ -57,7 +57,18 @@ cd "C:\path\OutGuess-for-Windows\bin-win64"
 
 ## 图形界面
 
-编译完成后，请将 `outguess-gui.exe` 与 `outguess.exe` 放在同一文件夹中。
+构建会产出**两个**逻辑完全相同、仅界面语言不同的 GUI 程序：
+
+- `outguess-gui.exe` —— 简体中文界面。
+- `outguess-gui-en.exe` —— 英文界面（源码为纯 ASCII，在任何语言版本的
+  Windows 上都能零字体/代码页风险地正确显示，可作为对照与回退）。
+
+两者均使用 Unicode（W）版 Win32 接口，因此即使是英文版，也能在任意语言的
+Windows 上正确处理中文或其它非 ASCII 的文件路径与密钥。按个人喜好任选其一，
+但都必须与 `outguess.exe` 放在同一文件夹。
+
+编译完成后，请将 `outguess-gui.exe`（或 `outguess-gui-en.exe`）与
+`outguess.exe` 放在同一文件夹中。
 
 ```powershell
 Start-Process ".\outguess-gui.exe"

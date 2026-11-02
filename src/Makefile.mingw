@@ -16,7 +16,7 @@ RANLIB  = ranlib
 CFLAGS  ?= -O2 -w
 JPEGDIR := jpeg-6b-steg
 
-all: outguess.exe histogram.exe outguess-gui.exe capacity.exe metadata.exe batch.exe
+all: outguess.exe histogram.exe outguess-gui.exe outguess-gui-en.exe capacity.exe metadata.exe batch.exe
 
 $(JPEGDIR)/jconfig.h: FORCE
 	cp $(JPEGDIR)/jconfig.vc $(JPEGDIR)/jconfig.h
@@ -44,6 +44,14 @@ outguess-gui.exe: ../bin-win64/outguess-gui.c ../bin-win64/outguess-gui.res outg
 	$(CC) $(CFLAGS) -static -mwindows -finput-charset=UTF-8 ../bin-win64/outguess-gui.c \
 		../bin-win64/outguess-gui.res -o outguess-gui.exe -lcomctl32 -lcomdlg32
 
+# English edition of the GUI (outguess-gui-en.c). Pure ASCII source, so it
+# renders correctly on every Windows locale with zero font / code-page risk.
+# The Unicode (W) APIs and UTF-8 subprocess handling are kept, so non-ASCII
+# (e.g. Chinese) file paths and keys still work on every language build.
+outguess-gui-en.exe: ../bin-win64/outguess-gui-en.c ../bin-win64/outguess-gui.res outguess.exe
+	$(CC) $(CFLAGS) -static -mwindows ../bin-win64/outguess-gui-en.c \
+		../bin-win64/outguess-gui.res -o outguess-gui-en.exe -lcomctl32 -lcomdlg32
+
 capacity.exe: tools/capacity.c $(OUTGUESS_SRCS)
 	$(CC) $(CFLAGS) -static -I. -I$(JPEGDIR) tools/capacity.c \
 		arc.c pnm.c jpg.c md5.c err.c win32/getopt.c $(JPEGDIR)/libjpeg.a \
@@ -56,7 +64,7 @@ batch.exe: tools/batch.c
 	$(CC) $(CFLAGS) -static tools/batch.c -o batch.exe
 
 clean:
-	rm -f *.o win32/*.o tools/*.o $(JPEGDIR)/*.o $(JPEGDIR)/libjpeg.a $(JPEGDIR)/jconfig.h outguess.exe histogram.exe outguess-gui.exe capacity.exe metadata.exe batch.exe ../bin-win64/outguess-gui.res
+	rm -f *.o win32/*.o tools/*.o $(JPEGDIR)/*.o $(JPEGDIR)/libjpeg.a $(JPEGDIR)/jconfig.h outguess.exe histogram.exe outguess-gui.exe outguess-gui-en.exe capacity.exe metadata.exe batch.exe ../bin-win64/outguess-gui.res
 
 .PHONY: all clean
 
