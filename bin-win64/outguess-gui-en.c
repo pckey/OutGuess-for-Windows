@@ -995,9 +995,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int nShow)
 	wc.lpfnWndProc = WndProc;
 	wc.hInstance = hInst;
 	wc.lpszClassName = L"OutGuessGuiWndClass";
-	wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
+	wc.hCursor = LoadCursorW(NULL, (LPCWSTR)IDC_ARROW);
 	wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
-	wc.hIcon = LoadIconW(NULL, IDI_APPLICATION);
+	wc.hIcon = LoadIconW(NULL, (LPCWSTR)IDI_APPLICATION);
 	RegisterClassW(&wc);
 
 	hMain = CreateWindowW(L"OutGuessGuiWndClass", L"OutGuess - JPEG Steganography Tool",
