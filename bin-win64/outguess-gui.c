@@ -236,8 +236,30 @@ static int RunOutguess(const char *args)
 		return -1;
 	}
 
-	char cmdline[4096];
-	snprintf(cmdline, sizeof(cmdline), "\"%s\" %s", exePath, args);
+	/* 把 exe 路径（系统默认代码页）与参数（UTF-8，可能含非 ASCII 密钥）
+	 * 统一转成 UTF-16，用 CreateProcessW 启动，避免非中文 Windows 下
+	 * 密钥被按 ANSI 代码页误解码，从而在所有语言 Windows 上都能正确传递。 */
+	wchar_t exePathW[MAX_PATH];
+	if (MultiByteToWideChar(CP_ACP, 0, exePath, -1, exePathW, MAX_PATH) == 0) {
+		QueueLogLine(L"[错误] 无法解析 outguess.exe 路径");
+		return -1;
+	}
+	int argsWlen = MultiByteToWideChar(CP_UTF8, 0, args, -1, NULL, 0);
+	if (argsWlen <= 0) {
+		QueueLogLine(L"[错误] 无法解析命令行参数");
+		return -1;
+	}
+	wchar_t *argsW = (wchar_t *)malloc((size_t)argsWlen * sizeof(wchar_t));
+	if (!argsW) {
+		QueueLogLine(L"[错误] 内存不足");
+		return -1;
+	}
+	MultiByteToWideChar(CP_UTF8, 0, args, -1, argsW, argsWlen);
+
+	wchar_t cmdlineW[4096 + MAX_PATH];
+	_snwprintf(cmdlineW, sizeof(cmdlineW) / sizeof(wchar_t), L"\"%s\" %s",
+		exePathW, argsW);
+	free(argsW);
 
 	SECURITY_ATTRIBUTES sa;
 	ZeroMemory(&sa, sizeof(sa));
@@ -251,7 +273,7 @@ static int RunOutguess(const char *args)
 	}
 	SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
 
-	STARTUPINFOA si;
+	STARTUPINFOW si;
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 	si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
@@ -264,9 +286,9 @@ static int RunOutguess(const char *args)
 	ZeroMemory(&pi, sizeof(pi));
 
 	QueueLogLine(L"---");
-	QueueLogAcp(cmdline);
+	QueueLogLine(cmdlineW);
 
-	BOOL ok = CreateProcessA(NULL, cmdline, NULL, NULL, TRUE,
+	BOOL ok = CreateProcessW(NULL, cmdlineW, NULL, NULL, TRUE,
 	                          CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 	CloseHandle(hWritePipe);
 
