@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "../win32/winutf8.h"
 
 static void usage(const char *program)
 {
@@ -36,9 +37,8 @@ static int has_option(int argc, char **argv, const char *name)
 static int ensure_directory(const char *path)
 {
 	char parent[MAX_PATH];
-	DWORD attributes = GetFileAttributesA(path);
-	if (attributes != INVALID_FILE_ATTRIBUTES)
-		return (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+	if (path_is_dir_utf8(path))
+		return 1;
 	strncpy(parent, path, sizeof(parent) - 1);
 	parent[sizeof(parent) - 1] = '\0';
 	char *slash = strrchr(parent, '\\');
@@ -49,7 +49,7 @@ static int ensure_directory(const char *path)
 		if (!ensure_directory(parent))
 			return 0;
 	}
-	return CreateDirectoryA(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
+	return create_dir_utf8(path);
 }
 
 static void quote(char *target, size_t size, const char *value)
@@ -74,9 +74,8 @@ static int process_file(const char *mode, const char *key, const char *message,
 	char command[4096], filename[MAX_PATH];
 	char *slash;
 	int pathLength;
-	STARTUPINFOA startup;
-	PROCESS_INFORMATION process;
-	GetModuleFileNameA(NULL, program, sizeof(program));
+	if (module_path_utf8(program, sizeof(program)) <= 0)
+		program[0] = '\0';
 	slash = strrchr(program, '\\');
 	if (slash)
 		strcpy(slash + 1, "outguess.exe");
@@ -101,7 +100,7 @@ static int process_file(const char *mode, const char *key, const char *message,
 		fprintf(stderr, "[falha] saida nao pode ser a mesma imagem: %s\n", input);
 		return 1;
 	}
-	if (!force && GetFileAttributesA(output) != INVALID_FILE_ATTRIBUTES) {
+	if (!force && path_exists_utf8(output)) {
 		printf("[ignorado] saida ja existe: %s\n", output);
 		return 0;
 	}
@@ -130,26 +129,23 @@ static int process_file(const char *mode, const char *key, const char *message,
 			outputQuoted);
 	}
 	printf("[%s] %s\nComando: %s\n", mode, input, command);
-	ZeroMemory(&startup, sizeof(startup));
-	startup.cb = sizeof(startup);
-	ZeroMemory(&process, sizeof(process));
-	if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, CREATE_NO_WINDOW,
-		NULL, NULL, &startup, &process)) {
-		fprintf(stderr, "Nao foi possivel iniciar outguess.exe (erro %lu).\n",
-			(unsigned long)GetLastError());
+	int exitCode = run_process_utf8(command);
+	if (exitCode < 0) {
+		fprintf(stderr, "Nao foi possivel iniciar outguess.exe.\n");
 		return 1;
 	}
-	WaitForSingleObject(process.hProcess, INFINITE);
-	DWORD exitCode = 1;
-	GetExitCodeProcess(process.hProcess, &exitCode);
-	CloseHandle(process.hThread);
-	CloseHandle(process.hProcess);
-	return (int)exitCode;
+	return exitCode;
 }
 
 int main(int argc, char **argv)
 {
-	WIN32_FIND_DATAA data;
+#ifdef _WIN32
+	/* 让命令行参数（如中文图片路径、输出目录、-k 密钥）按 UTF-8 解析，
+	 * 而非被系统 ANSI 代码页误解码 */
+	win32_to_utf8_args(&argc, &argv);
+#endif
+
+	WIN32_FIND_DATAW wdata;
 	HANDLE search;
 	char *key = NULL, *message = NULL, *pattern = NULL, *output = NULL, *quality = NULL;
 	char directory[MAX_PATH], searchPattern[MAX_PATH], input[MAX_PATH];
@@ -175,7 +171,7 @@ int main(int argc, char **argv)
 			return 2;
 		}
 	}
-	if (message && GetFileAttributesA(message) == INVALID_FILE_ATTRIBUTES) {
+	if (message && !path_exists_utf8(message)) {
 		fprintf(stderr, "Mensagem nao encontrada: %s\n", message);
 		return 1;
 	}
@@ -200,15 +196,20 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Padrao de entrada muito longo: %s\n", pattern);
 		return 2;
 	}
-	search = FindFirstFileA(input, &data);
+	search = find_first_utf8(input, &wdata);
 	if (search == INVALID_HANDLE_VALUE) {
 		fprintf(stderr, "Nenhum arquivo encontrado para: %s\n", pattern);
 		return 1;
 	}
 	do {
-		if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			if (snprintf(input, sizeof(input), "%s\\%s", directory, data.cFileName) >= (int)sizeof(input)) {
-				fprintf(stderr, "[ignorado] caminho muito longo: %s\n", data.cFileName);
+		if (!(wdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			char fname[MAX_PATH];
+			if (find_name_utf8(&wdata, fname, sizeof(fname)) < 0) {
+				printf("[ignorado] nome de arquivo muito longo.\n");
+				continue;
+			}
+			if (snprintf(input, sizeof(input), "%s\\%s", directory, fname) >= (int)sizeof(input)) {
+				fprintf(stderr, "[ignorado] caminho muito longo: %s\n", fname);
 				continue;
 			}
 			processed++;
@@ -221,7 +222,7 @@ int main(int argc, char **argv)
 				errorCorrection, quality, force) != 0)
 				failed++;
 		}
-	} while (FindNextFileA(search, &data));
+	} while (find_next_utf8(search, &wdata));
 	FindClose(search);
 	printf("Processados: %d | Sucessos: %d | Falhas: %d\n",
 		processed, processed - failed, failed);

@@ -469,26 +469,57 @@ static void RunCapacity(void)
 	snprintf(fullCommand, sizeof(fullCommand), "\"%s\" %s", tool, command);
 	AppendLogLine(L"--- 容量 ---");
 	AppendLogAcp(fullCommand);
-	STARTUPINFOA startup;
-	PROCESS_INFORMATION process;
 	SECURITY_ATTRIBUTES security;
 	HANDLE readPipe, writePipe;
-	ZeroMemory(&startup, sizeof(startup));
-	startup.cb = sizeof(startup);
-	ZeroMemory(&process, sizeof(process));
 	ZeroMemory(&security, sizeof(security));
 	security.nLength = sizeof(security);
 	security.bInheritHandle = TRUE;
+
+	/* exe 路径（系统默认代码页 CP_ACP）与参数（UTF-8）分别转 UTF-16，再用
+	 * CreateProcessW 启动，保证中文等非 ASCII 路径/参数在所有语言 Windows 上
+	 * 都能正确传递（与 RunOutguess 保持一致的策略）。 */
+	wchar_t toolW[MAX_PATH];
+	if (MultiByteToWideChar(CP_ACP, 0, tool, -1, toolW, MAX_PATH) == 0) {
+		AppendLogLine(L"[错误] 无法解析 capacity.exe 路径");
+		return;
+	}
+	int cmdWlen = MultiByteToWideChar(CP_UTF8, 0, command, -1, NULL, 0);
+	if (cmdWlen <= 0) {
+		AppendLogLine(L"[错误] 无法解析命令行参数");
+		return;
+	}
+	wchar_t *cmdW = (wchar_t *)malloc((size_t)cmdWlen * sizeof(wchar_t));
+	if (!cmdW) {
+		AppendLogLine(L"[错误] 内存不足");
+		return;
+	}
+	MultiByteToWideChar(CP_UTF8, 0, command, -1, cmdW, cmdWlen);
+
+	wchar_t cmdlineW[4096 + MAX_PATH];
+	_snwprintf(cmdlineW, sizeof(cmdlineW) / sizeof(wchar_t), L"\"%s\" %s",
+		toolW, cmdW);
+	free(cmdW);
+
 	if (!CreatePipe(&readPipe, &writePipe, &security, 0)) {
 		AppendLogLine(L"[错误] 无法获取容量。");
 		return;
 	}
 	SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
+
+	STARTUPINFOW startup;
+	ZeroMemory(&startup, sizeof(startup));
+	startup.cb = sizeof(startup);
 	startup.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 	startup.wShowWindow = SW_HIDE;
 	startup.hStdOutput = writePipe;
 	startup.hStdError = writePipe;
-	if (!CreateProcessA(NULL, fullCommand, NULL, NULL, TRUE, CREATE_NO_WINDOW,
+
+	PROCESS_INFORMATION process;
+	ZeroMemory(&process, sizeof(process));
+
+	AppendLogLine(cmdlineW);
+
+	if (!CreateProcessW(NULL, cmdlineW, NULL, NULL, TRUE, CREATE_NO_WINDOW,
 		NULL, NULL, &startup, &process)) {
 		CloseHandle(readPipe);
 		CloseHandle(writePipe);

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../win32/winutf8.h"
 
 static unsigned short read16(FILE *file)
 {
@@ -39,11 +40,16 @@ int main(int argc, char **argv)
 	int jfif = 0, exif = 0, iptc = 0, xmp = 0;
 	unsigned long long theoreticalBits = 0;
 
+#ifdef _WIN32
+	/* 让命令行参数（如中文图片路径）按 UTF-8 解析，而非系统 ANSI 代码页 */
+	win32_to_utf8_args(&argc, &argv);
+#endif
+
 	if (argc != 2) {
 		usage(argv[0]);
 		return 2;
 	}
-	file = fopen(argv[1], "rb");
+	file = fopen_utf8(argv[1], "rb");
 	if (!file) {
 		perror(argv[1]);
 		return 1;

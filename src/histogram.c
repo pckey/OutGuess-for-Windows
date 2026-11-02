@@ -9,6 +9,7 @@
 #include "config.h"
 #include "err.h"
 #include "outguess.h"
+#include "win32/winutf8.h"
 
 char *progname;
 
@@ -77,6 +78,11 @@ main(int argc, char *argv[])
 
 	progname = argv[0];
 
+#ifdef _WIN32
+	/* 让命令行参数（如中文数据文件路径）按 UTF-8 解析，而非系统 ANSI 代码页 */
+	win32_to_utf8_args(&argc, &argv);
+#endif
+
 	argv++;
 	argc--;
 
@@ -85,7 +91,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if ((fin = fopen(argv[0], "r")) == NULL)
+	if ((fin = fopen_utf8(argv[0], "r")) == NULL)
 		err(1, "fopen");
 
 	if ((res = fread(&bits, sizeof(int), 1, fin)) != 1)

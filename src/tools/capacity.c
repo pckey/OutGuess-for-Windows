@@ -6,6 +6,7 @@
 #include "../outguess.h"
 #include "../pnm.h"
 #include "../jpg.h"
+#include "../win32/winutf8.h"
 
 int steg_foil;
 int steg_foilfail;
@@ -39,6 +40,11 @@ int main(int argc, char **argv)
 	char *end;
 	long qualityValue;
 
+#ifdef _WIN32
+	/* 让命令行参数（如中文图片路径）按 UTF-8 解析，而非系统 ANSI 代码页 */
+	win32_to_utf8_args(&argc, &argv);
+#endif
+
 	while ((option = getopt(argc, argv, "ep:")) != -1) {
 		if (option == 'e')
 			errorCorrection = 1;
@@ -66,7 +72,7 @@ int main(int argc, char **argv)
 	}
 	else
 		init_JPEG_handler(NULL);
-	input = fopen(argv[optind], "rb");
+	input = fopen_utf8(argv[optind], "rb");
 	if (!input) {
 		perror(argv[optind]);
 		return 1;

@@ -78,6 +78,8 @@
 #include <shellapi.h>
 #endif
 
+#include "win32/winutf8.h"
+
 #ifndef MAP_FAILED
 /* Some Linux systems are missing this */
 #define MAP_FAILED	(void *)-1
@@ -752,9 +754,9 @@ mmap_file(char *name, u_char **data, int *size)
 	char *p;
 
 #ifdef O_BINARY
-	if ((fd = open(name, O_RDONLY | O_BINARY, 0)) == -1) {
+	if ((fd = open_utf8(name, O_RDONLY | O_BINARY, 0)) == -1) {
 #else
-	if ((fd = open(name, O_RDONLY, 0)) == -1) {
+	if ((fd = open_utf8(name, O_RDONLY, 0)) == -1) {
 #endif
 		fprintf(stderr, "Can not open %s\n", name);
 		exit(1);
@@ -796,56 +798,6 @@ munmap_file(u_char *data, int len)
 #endif /* HAVE_MMAP */
 }
 
-#ifdef _WIN32
-/* 在 Windows 上，MinGW 的 C 运行时默认用系统 ANSI 代码页（CP_ACP）解码命令行，
- * 这会导致包含非 ASCII 字符的密钥（-k）在非中文 Windows 上被破坏。
- *
- * 这里改用 GetCommandLineW 取得完整的 UTF-16 命令行，再用 CommandLineToArgvW
- * 拆分为参数，最后统一转换成 UTF-8 字节填充到 argv。这样一来，无论系统使用
- * 哪种语言/代码页，嵌入与提取两侧拿到的密钥字节都完全一致，能正确匹配。
- *
- * 文件类参数（输入/输出/消息文件路径）由图形界面统一转成了 ASCII 的 8.3 短
- * 路径，因此这里即便按 UTF-8 解码也仍然是 ASCII，不会影响子进程内部的 fopen。 */
-static void windows_to_utf8_argv(int *argc_in, char ***argv_in)
-{
-	int wargc;
-	wchar_t **wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
-	if (wargv == NULL || wargc <= 0)
-		return;
-
-	char **uargv = (char **)malloc(sizeof(char *) * (size_t)(wargc + 1));
-	if (uargv == NULL) {
-		LocalFree(wargv);
-		return;
-	}
-
-	int i;
-	for (i = 0; i < wargc; i++) {
-		int need = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1,
-			NULL, 0, NULL, NULL);
-		if (need <= 0) {
-			uargv[i] = (char *)malloc(1);
-			if (uargv[i])
-				uargv[i][0] = '\0';
-			continue;
-		}
-		uargv[i] = (char *)malloc((size_t)need);
-		if (uargv[i] == NULL) {
-			uargv[i] = (char *)malloc(1);
-			if (uargv[i])
-				uargv[i][0] = '\0';
-			continue;
-		}
-		WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1,
-			uargv[i], need, NULL, NULL);
-	}
-	uargv[wargc] = NULL;
-	LocalFree(wargv);
-
-	*argc_in = wargc;
-	*argv_in = uargv;
-}
-#endif
 
 int
 main(int argc, char **argv)
@@ -894,8 +846,9 @@ main(int argc, char **argv)
 #endif /* FOURIER */
 
 #ifdef _WIN32
-	/* 用 UTF-16 命令行重新生成 UTF-8 的 argv，保证非 ASCII 密钥跨代码页一致。 */
-	windows_to_utf8_argv(&argc, &argv);
+	/* Windows 下用 winutf8.h 的 win32_to_utf8_args() 重建 UTF-8 的 argv，
+	 * 使非 ASCII 的 -k 密钥与中文路径跨代码页一致（见 src/win32/winutf8.h）。 */
+	win32_to_utf8_args(&argc, &argv);
 #endif
 
 	progname = argv[0];
@@ -1006,14 +959,14 @@ main(int argc, char **argv)
 				exit (1);
 			}
 		}
-		fin = fopen(argv[0], "rb");
+		fin = fopen_utf8(argv[0], "rb");
 		if (fin == NULL) {
 			fprintf(stderr, "Can't open input file '%s': ",
 				argv[0]);
 			perror("fopen");
 			exit(1);
 		}
-		fout = fopen(argv[1], "wb");
+		fout = fopen_utf8(argv[1], "wb");
 		if (fout == NULL) {
 			fprintf(stderr, "Can't open output file '%s': ",
 				argv[1]);
