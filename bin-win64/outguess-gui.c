@@ -777,13 +777,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 		SendMessageW(hImgOut, WM_SETFONT, (WPARAM)hFont, TRUE);
 
 		hLblQuality = CreateWindowW(L"STATIC", L"JPEG 质量（75-100）：", WS_CHILD | WS_VISIBLE,
-			12, 224, 150, 20, hwnd, (HMENU)ID_LBL_QUALITY, NULL, NULL);
+			12, 224, 205, 20, hwnd, (HMENU)ID_LBL_QUALITY, NULL, NULL);
 		hQuality = CreateWindowW(L"EDIT", L"75", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
-			165, 222, 60, 24, hwnd, (HMENU)ID_EDIT_QUALITY, NULL, NULL);
+			222, 222, 58, 24, hwnd, (HMENU)ID_EDIT_QUALITY, NULL, NULL);
 		hLblIter = CreateWindowW(L"STATIC", L"迭代次数限制：", WS_CHILD | WS_VISIBLE,
-			245, 224, 130, 20, hwnd, (HMENU)ID_LBL_ITER, NULL, NULL);
+			290, 224, 130, 20, hwnd, (HMENU)ID_LBL_ITER, NULL, NULL);
 		hIter = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_NUMBER,
-			378, 222, 75, 24, hwnd, (HMENU)ID_EDIT_ITER, NULL, NULL);
+			425, 222, 70, 24, hwnd, (HMENU)ID_EDIT_ITER, NULL, NULL);
 
 		MKSTATIC(L"密钥（可选）：", 12, 260, 180, 20);
 		hKey = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_PASSWORD | ES_AUTOHSCROLL,
